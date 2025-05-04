@@ -18,12 +18,20 @@ var db *sql.DB
 var cfg *mysql.Config
 var tmpl *template.Template
 
+
 type PageData struct {
 	Title          string
 	Customers      []User
 	CustomersStats []Customer
 	Orders         []Order
 	Pagination     Pagination
+	Sort           string
+}
+type CustomersPageData struct {
+	Title          string
+	Customers      []User
+	CustomersStats []Customer
+	Orders         []Order
 }
 
 func main() {
@@ -88,11 +96,15 @@ func main() {
 	http.HandleFunc("/order/create", createOrderHandler)
 
 	http.HandleFunc("/order/cancel/", cancelOrderHandler)
+
+	http.HandleFunc("/customers", customersHandler)
 	http.HandleFunc("/customers/", customersHandler)
 
 	// Customer routes
-	http.HandleFunc("/customer/add", addCustomerHandler)
-	http.HandleFunc("/customers/add", addCustomerSubmitHandler)
+	http.HandleFunc("/customer/view/", viewCustomerHandler)
+	 // GET - shows the form
+
+http.HandleFunc("/customer/add", addCustomerHandler)
 	http.HandleFunc("/customer/edit/", editCustomerHandler)
 	http.HandleFunc("/customer/delete/", deleteCustomerHandler)
 	http.HandleFunc("/customer/update/", updateCustomerHandler)

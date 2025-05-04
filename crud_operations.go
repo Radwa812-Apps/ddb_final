@@ -24,18 +24,12 @@ type Snap struct {
 	Port     string
 	Username string
 }
-type Pagination struct {
-	CurrentPage int
-	PerPage     int
-	TotalItems  int
-	TotalPages  int
-}
 
 // Snaps is a slice of Snap structs
 var snaps = []Snap{
 	{
 		Name:     "Snap1",
-		Address:  "192.168.137.173",
+		Address:  "192.168.144.1",
 		Port:     "8081",
 		Username: "hp",
 	},
@@ -92,17 +86,22 @@ type OrderItem struct {
 	Price       float64
 	ProductName string
 }
-
-func NewPagination(currentPage, perPage, totalItems int) Pagination {
-	totalPages := (totalItems + perPage - 1) / perPage
-	return Pagination{
-		CurrentPage: currentPage,
-		PerPage:     perPage,
-		TotalItems:  totalItems,
-		TotalPages:  totalPages,
-	}
+type Pagination struct {
+    CurrentPage int
+    PerPage     int
+    TotalItems  int
+    TotalPages  int
 }
 
+func NewPagination(currentPage, perPage, totalItems int) Pagination {
+    totalPages := (totalItems + perPage - 1) / perPage // Round up division
+    return Pagination{
+        CurrentPage: currentPage,
+        PerPage:     perPage,
+        TotalItems:  totalItems,
+        TotalPages:  totalPages,
+    }
+}
 func (p Pagination) HasPrev() bool {
 	return p.CurrentPage > 1
 }
@@ -119,10 +118,6 @@ func (p Pagination) Pages() []int {
 	return pages
 }
 
-func CreateCustomer(name, email, password string) error {
-	_, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", name, email, password)
-	return err
-}
 
 func GetCustomers() ([]User, error) {
 	var users []User
@@ -190,23 +185,7 @@ func DeleteProduct(id int) error {
 	return err
 }
 
-// func DeleteProduct(id int) error {
-// 	tx, err := db.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = tx.Exec("DELETE FROM OrderItems WHERE product_id = ?", id)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return err
-// 	}
-// 	_, err = tx.Exec("DELETE FROM Products WHERE id = ?", id)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return err
-// 	}
-// 	return tx.Commit()
-// }
+
 
 func CreateOrder(userID int, totalPrice float64) (int64, error) {
 	result, err := db.Exec("INSERT INTO orders (user_id, total_price) VALUES (?, ?)", userID, totalPrice)
@@ -220,46 +199,6 @@ func CreateOrder(userID int, totalPrice float64) (int64, error) {
 func UpdateOrder(id int, totalPrice float64) error {
 	_, err := db.Exec("UPDATE orders SET total_price = ? WHERE id = ?", totalPrice, id)
 	return err
-}
-
-func GetAllCustomersWithOrderStats() ([]Customer, error) {
-	query := `
-		SELECT 
-			u.id,
-			u.name,
-			u.email,
-			COUNT(o.id) AS order_count,
-			COALESCE(SUM(o.total_price), 0) AS total_spent
-		FROM 
-			Users u
-		LEFT JOIN 
-			Orders o ON u.id = o.user_id
-		GROUP BY 
-			u.id, u.name, u.email
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var customers []Customer
-
-	for rows.Next() {
-		var c Customer
-		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.OrderCount, &c.TotalSpent)
-		if err != nil {
-			return nil, err
-		}
-		customers = append(customers, c)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-	fmt.Printf("Customers: %+v\n", customers)
-	return customers, nil
 }
 
 func CreateOrderItem(orderID int64, productID, quantity int, price float64) error {
@@ -933,4 +872,9 @@ func getTableData(db *sql.DB, tableName string) ([][]interface{}, error) {
 	}
 
 	return results, nil
+}
+
+func CreateCustomer(name, email, password string) error {
+    _, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", name, email, password)
+    return err
 }
