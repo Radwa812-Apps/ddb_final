@@ -111,27 +111,6 @@
                         </table>
                     </div>
                 </div>
-                <div class="flex justify-center mt-6">
-                    <nav class="inline-flex rounded-md shadow">
-                        {{if .Pagination.HasPrev}}
-                        <a href="?page={{sub .Pagination.CurrentPage 1}}" class="px-3 py-2 rounded-l-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
-                            Previous
-                        </a>
-                        {{end}}
-                        
-                        {{range .Pagination.Pages}}
-                        <a href="?page={{.}}" class="{{if eq . $.Pagination.CurrentPage}}bg-indigo-600 text-white{{else}}bg-white text-gray-500 hover:bg-gray-50{{end}} px-3 py-2 border-t border-b border-gray-300">
-                            {{.}}
-                        </a>
-                        {{end}}
-                        
-                        {{if .Pagination.HasNext}}
-                        <a href="?page={{add .Pagination.CurrentPage 1}}" class="px-3 py-2 rounded-r-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50">
-                            Next
-                        </a>
-                        {{end}}
-                    </nav>
-                </div>
             </main>
         </div>
     </div>
