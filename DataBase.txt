@@ -78,3 +78,11 @@ FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
 ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE orders ADD COLUMN status VARCHAR(20) DEFAULT 'Processing';
+
+ALTER TABLE OrderItems MODIFY product_id INT NULL;
+
+-- 2. ثم عدل العلاقة لاستخدام ON DELETE SET NULL
+ALTER TABLE OrderItems DROP FOREIGN KEY orderitems_ibfk_2;
+ALTER TABLE OrderItems 
+ADD CONSTRAINT orderitems_ibfk_2 
+FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE SET NULL;
