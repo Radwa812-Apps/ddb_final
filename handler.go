@@ -26,8 +26,8 @@ func addCustomerSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		// Replication to master
 		query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
 			firstName, email, password)
-		replicateToMaster(query)
-		replicateToSlaves(query)
+		replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+		replicateToSlaves(query, "ecommerce_db1", "root", "rootroot")
 		// Redirect to customers page
 		http.Redirect(w, r, "/customers", http.StatusSeeOther)
 		return

@@ -127,16 +127,31 @@ func replicateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var reqBody struct {
-		Query string `json:"query"`
+		Query    string `json:"query"`
+		Database string `json:"database"`
+		User     string `json:"user"`
+		Password string `json:"password"`
 	}
+
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
+		log.Printf("Error decoding JSON: %v", err) // Log error for debugging
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
 
+	dsn := fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", reqBody.User, reqBody.Password, reqBody.Database)
+	db, err := sql.Open("mysql", dsn)
+	if err != nil {
+		log.Printf("Failed to connect to database: %v", err) // Log connection error
+		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+
 	_, err = db.Exec(reqBody.Query)
 	if err != nil {
+		log.Printf("Failed to execute query: %v", err) // Log query execution error
 		http.Error(w, "Failed to execute query", http.StatusInternalServerError)
 		return
 	}
@@ -154,8 +169,14 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func replicateToMaster(query string) {
-	body := map[string]string{"query": query}
+func replicateToMaster(query string, database string, user string, password string) {
+
+	body := map[string]string{
+		"query":    query,
+		"database": database,
+		"user":     user,
+		"password": password,
+	}
 	jsonData, err := json.Marshal(body)
 	if err != nil {
 		log.Printf("Error encoding JSON: %v", err)

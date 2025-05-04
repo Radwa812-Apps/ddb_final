@@ -348,14 +348,22 @@ func addTableSubmitHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // replicateToSlaves replicates database updates to all slave nodes
-func replicateToSlaves(query string) {
-	body := map[string]string{"query": query}
+func replicateToSlaves(query string, user string, password string, database string) {
+	// Create a map to hold the request data
+	body := map[string]string{
+		"query":    query,
+		"user":     user,
+		"password": password,
+		"database": database,
+	}
+	// Marshal the map into a JSON format
 	jsonData, err := json.Marshal(body)
 	if err != nil {
 		log.Printf("Error encoding JSON: %v", err)
 		return
 	}
 
+	// Loop through each slave node and send the request
 	for _, snap := range snaps {
 		url := fmt.Sprintf("http://%s:%s/replicate", snap.Address, snap.Port)
 		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
