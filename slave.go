@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -9,14 +10,13 @@ import (
 	"net/http"
 	"os"
 
-	_ "github.com/lib/pq"
-
 	"github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 var db *sql.DB
-var tmpl *template.Template
 var cfg *mysql.Config
+var tmpl *template.Template
 
 type PageData struct {
 	Title          string
@@ -25,15 +25,8 @@ type PageData struct {
 	Orders         []Order
 	Pagination     Pagination
 }
-type CustomersPageData struct {
-	Title          string
-	Customers      []User
-	CustomersStats []Customer
-	Orders         []Order
-}
 
 func main() {
-
 	tmpl = template.New("").Funcs(template.FuncMap{
 		"add": func(a, b int) int { return a + b },
 		"sub": func(a, b int) int { return a - b },
@@ -41,14 +34,13 @@ func main() {
 
 	// Load templates
 	tmpl = template.Must(tmpl.ParseGlob("templates/*.html"))
-
 	// Capture connection properties.
 	cfg = mysql.NewConfig()
 	cfg.User = os.Getenv("DBUSER")
 	cfg.Passwd = os.Getenv("DBPASS")
 	cfg.Net = "tcp"
 	cfg.Addr = "127.0.0.1:3306"
-	cfg.DBName = "ecommerce_db"
+	cfg.DBName = "ecommerce_db1"
 
 	// Get a database handle.
 	var err error
@@ -124,26 +116,9 @@ func main() {
 	// // Route for processing form submission
 	// http.HandleFunc("/tables/create", addTableSubmitHandler)
 
-	//replicaate routes
 	http.HandleFunc("/replicate", replicateHandler)
-
-	// Serve static files
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-
-	fmt.Println("Master running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-
-}
-
-func dashboardHandler(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title: "Dashboard",
-	}
-	err := tmpl.ExecuteTemplate(w, "base.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	fmt.Println("Slave Node running on http://localhost:8081")
+	log.Fatal(http.ListenAndServe(":8081", nil))
 }
 func replicateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -167,4 +142,34 @@ func replicateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, "Replication successful")
+}
+
+func dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	data := PageData{
+		Title: "Dashboard",
+	}
+	err := tmpl.ExecuteTemplate(w, "base.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func replicateToMaster(query string) {
+	body := map[string]string{"query": query}
+	jsonData, err := json.Marshal(body)
+	if err != nil {
+		log.Printf("Error encoding JSON: %v", err)
+		return
+	}
+
+	resp, err := http.Post("http://192.168.75.28:8080/replicate", "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("Failed to replicate to master: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("Master returned non-OK status: %v", resp.Status)
+	}
 }

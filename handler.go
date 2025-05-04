@@ -26,6 +26,7 @@ func addCustomerSubmitHandler(w http.ResponseWriter, r *http.Request) {
 		// Replication to master
 		query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
 			firstName, email, password)
+		replicateToMaster(query)
 		replicateToSlaves(query)
 		// Redirect to customers page
 		http.Redirect(w, r, "/customers", http.StatusSeeOther)
@@ -338,7 +339,6 @@ func createProductHandler(w http.ResponseWriter, r *http.Request) {
 	// Redirect to products page
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
-
 
 func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/product/delete/")

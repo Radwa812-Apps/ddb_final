@@ -35,9 +35,15 @@ type Pagination struct {
 var snaps = []Snap{
 	{
 		Name:     "Snap1",
-		Address:  "192.168.1.14", //"192.168.137.173",
+		Address:  "192.168.137.173",
 		Port:     "8081",
-		Username: "elite", //"hp",
+		Username: "hp",
+	},
+	{
+		Name:     "Snap2",
+		Address:  "192.168.75.28",
+		Port:     "8081",
+		Username: "elite",
 	},
 }
 
