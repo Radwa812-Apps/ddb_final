@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"html/template"
+
 	"log"
 	"net/http"
 	"strconv"
@@ -12,67 +12,7 @@ import (
 
 // *****************Customer***********
 // *********************************************************************
-func addCustomerSubmitHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		firstName := r.FormValue("firstName")
-		email := r.FormValue("email")
-		password := r.FormValue("password")
 
-		var err error
-		_, err = db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", firstName, email, password)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// Replication to master
-		query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
-			firstName, email, password)
-		replicateToSlaves(query)
-		// Redirect to customers page
-		http.Redirect(w, r, "/customers", http.StatusSeeOther)
-		return
-	}
-
-	tmpl, err := template.ParseFiles("templates/add-customer.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	tmpl.Execute(w, nil)
-}
-func customersHandler(w http.ResponseWriter, r *http.Request) {
-	page := 1
-	if p := r.URL.Query().Get("page"); p != "" {
-		page, _ = strconv.Atoi(p)
-	}
-
-	customers, err := GetAllCustomersWithOrderStats()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	total := len(customers)
-
-	data := PageData{
-		Title:          "Customers",
-		CustomersStats: customers, // Pass the customers data
-		Pagination:     NewPagination(page, 5, total),
-	}
-
-	err = tmpl.ExecuteTemplate(w, "customers.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-func addCustomerHandler(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title: "Add Customer",
-	}
-
-	err := tmpl.ExecuteTemplate(w, "add-customer.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
 func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/customer/delete/")
 	if id == "" {
@@ -102,7 +42,8 @@ func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	query := fmt.Sprintf("DELETE FROM users WHERE id = '%s'", id)
+	replicateToSlaves(query, "root", "rootroot")
 	// Re-enable checks and commit
 	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS=1")
 	if err != nil {
@@ -136,12 +77,19 @@ func updateCustomerHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error updating customer", http.StatusInternalServerError)
 			return
 		}
+		query := fmt.Sprintf("UPDATE users SET name = '%s', email = '%s' WHERE id = %s", name, email, id)
+		fmt.Println(query)
+		replicateToSlaves(query, "root", "rootroot")
+
 	} else {
 		_, err := db.Exec("UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?", name, email, password, id)
 		if err != nil {
 			http.Error(w, "Error updating customer", http.StatusInternalServerError)
 			return
 		}
+		query := fmt.Sprintf("UPDATE users SET name = '%s', email = '%s', password = '%s' WHERE id = %s", name, email, password, id)
+		fmt.Println(query)
+		replicateToSlaves(query, "root", "rootroot")
 	}
 
 	http.Redirect(w, r, "/customers", http.StatusSeeOther)
@@ -176,59 +124,6 @@ func editCustomerHandler(w http.ResponseWriter, r *http.Request) {
 //****************************Order**************
 //********************************************************
 
-func ordersHandler(w http.ResponseWriter, r *http.Request) {
-	orders, err := GetOrders()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		Title  string
-		Orders []Order
-	}{
-		Title:  "Orders",
-		Orders: orders,
-	}
-
-	err = tmpl.ExecuteTemplate(w, "orders.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-/*func createOrderHandler(w http.ResponseWriter, r *http.Request) {
-	// Get customers and products for the form
-	customers, err := GetCustomers()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	products, err := GetProducts()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		Title     string
-		Customers []User
-		Products  []Product
-	}{
-		Title:     "Create Order",
-		Customers: customers,
-		Products:  products,
-	}
-
-	err = tmpl.ExecuteTemplate(w, "add-order.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-*/
-
 func cancelOrderHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/order/cancel/")
 	id, err := strconv.Atoi(idStr)
@@ -243,7 +138,8 @@ func cancelOrderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error cancelling order", http.StatusInternalServerError)
 		return
 	}
-
+	query := fmt.Sprintf("UPDATE orders SET status = 'Cancelled' WHERE id = %d", id)
+	replicateToSlaves(query, "root", "rootroot")
 	http.Redirect(w, r, "/orders", http.StatusSeeOther)
 }
 
@@ -263,6 +159,8 @@ func updateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating order", http.StatusInternalServerError)
 		return
 	}
+	query := fmt.Sprintf("UPDATE orders SET total_price = %s WHERE id = %s", totalPrice, id)
+	replicateToSlaves(query, "root", "rootroot")
 	w.Write([]byte("Order updated successfully"))
 }
 
@@ -279,27 +177,6 @@ func viewOrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //***************Product handlers***********
-
-func productsHandler(w http.ResponseWriter, r *http.Request) {
-	products, err := GetProducts()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := struct {
-		Title    string
-		Products []Product
-	}{
-		Title:    "Products",
-		Products: products,
-	}
-
-	err = tmpl.ExecuteTemplate(w, "products.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
 
 func createProductHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -334,11 +211,13 @@ func createProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error creating product", http.StatusInternalServerError)
 		return
 	}
-
+	// Replication
+	query := fmt.Sprintf("INSERT INTO products (name, description, price, quantity) VALUES ('%s', '%s', %f, %d)",
+		name, description, price, quantity)
+	replicateToSlaves(query, "root", "rootroot")
 	// Redirect to products page
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
-
 
 func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/product/delete/")
@@ -353,7 +232,8 @@ func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error deleting product", http.StatusInternalServerError)
 		return
 	}
-
+	query := fmt.Sprintf("DELETE FROM products WHERE id = %d", id)
+	replicateToSlaves(query, "root", "rootroot")
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 func updateProductHandler(w http.ResponseWriter, r *http.Request) {
@@ -386,7 +266,9 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating product", http.StatusInternalServerError)
 		return
 	}
-
+	query := fmt.Sprintf("UPDATE products SET name = '%s', description = '%s', price = %f, quantity = %d WHERE id = %d",
+		name, description, price, quantity, id)
+	replicateToSlaves(query, "root", "rootroot")
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 func editProductHandler(w http.ResponseWriter, r *http.Request) {
@@ -459,7 +341,8 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error creating order: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-
+		query := fmt.Sprintf("INSERT INTO orders (user_id, total_price) VALUES (%d, %f)", userID, totalPrice)
+		replicateToSlaves(query, "root", "rootroot")
 		// Add order items
 		for i, productIDStr := range productIDs {
 			productID, err := strconv.Atoi(productIDStr)
@@ -485,6 +368,9 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Error adding order item: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
+			query := fmt.Sprintf("INSERT INTO orderItems (order_id, product_id, quantity, price) VALUES (%d, %d, %d, %f)",
+				orderID, productID, quantity, price)
+			replicateToSlaves(query, "root", "rootroot")
 		}
 
 		http.Redirect(w, r, "/orders", http.StatusSeeOther)
@@ -515,6 +401,215 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = tmpl.ExecuteTemplate(w, "add-order.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func productsHandler(w http.ResponseWriter, r *http.Request) {
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
+
+	limit := 5
+	offset := (page - 1) * limit
+
+	products, err := GetPaginatedProducts(offset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get total count for pagination
+	var total int
+	err = db.QueryRow("SELECT COUNT(*) FROM products").Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Title      string
+		Products   []Product
+		Pagination Pagination
+	}{
+		Title:      "Products",
+		Products:   products,
+		Pagination: NewPagination(page, limit, total),
+	}
+
+	err = tmpl.ExecuteTemplate(w, "products.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func ordersHandler(w http.ResponseWriter, r *http.Request) {
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
+
+	limit := 5
+	offset := (page - 1) * limit
+
+	orders, err := GetPaginatedOrders(offset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get total count for pagination
+	var total int
+	err = db.QueryRow("SELECT COUNT(*) FROM orders").Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Title      string
+		Orders     []Order
+		Pagination Pagination
+	}{
+		Title:      "Orders",
+		Orders:     orders,
+		Pagination: NewPagination(page, limit, total),
+	}
+
+	err = tmpl.ExecuteTemplate(w, "orders.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func customersHandler(w http.ResponseWriter, r *http.Request) {
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
+
+	sort := r.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "newest" // default sort
+	}
+
+	customers, err := GetAllCustomersWithOrderStats(page, sort)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get total count of customers (without LIMIT)
+	var total int
+	err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		Title:          "Customers",
+		CustomersStats: customers,
+		Pagination:     NewPagination(page, 5, total),
+		Sort:           sort,
+	}
+
+	err = tmpl.ExecuteTemplate(w, "customers.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func viewCustomerHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/customer/view/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get customer details
+	customer, err := GetCustomerByID(id)
+	if err != nil {
+		http.Error(w, "Customer not found", http.StatusNotFound)
+		return
+	}
+
+	// Get customer orders
+	orders, err := GetCustomerOrders(id)
+	if err != nil {
+		http.Error(w, "Error fetching orders", http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Customer User
+		Orders   []Order
+	}{
+		Customer: customer,
+		Orders:   orders,
+	}
+
+	tmpl.ExecuteTemplate(w, "view-customer.html", data)
+}
+
+func addCustomerSubmitHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	firstName := r.FormValue("firstName")
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	err := CreateCustomer(firstName, email, password)
+	if err != nil {
+		log.Printf("Error creating customer: %v", err)
+		http.Error(w, "Error creating customer", http.StatusInternalServerError)
+		return
+	}
+
+	// Replication to master
+	query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
+		firstName, email, password)
+	replicateToSlaves(query, "ecommerce_db1", "root")
+
+	// Redirect to customers page
+	http.Redirect(w, r, "/customers", http.StatusSeeOther)
+}
+
+func addCustomerHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		// Handle POST request (form submission)
+		firstName := r.FormValue("firstName")
+		email := r.FormValue("email")
+		password := r.FormValue("password")
+
+		err := CreateCustomer(firstName, email, password)
+		if err != nil {
+			log.Printf("Error creating customer: %v", err)
+			http.Error(w, "Error creating customer", http.StatusInternalServerError)
+			return
+		}
+
+		// Replication
+		query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
+			firstName, email, password)
+
+		replicateToSlaves(query, "root", "rootroot")
+
+		http.Redirect(w, r, "/customers", http.StatusSeeOther)
+		return
+	}
+
+	// Handle GET request (show form)
+	data := PageData{
+		Title: "Add Customer",
+	}
+	err := tmpl.ExecuteTemplate(w, "add-customer.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

@@ -24,6 +24,7 @@ type PageData struct {
 	CustomersStats []Customer
 	Orders         []Order
 	Pagination     Pagination
+	Sort           string
 }
 type CustomersPageData struct {
 	Title          string
@@ -96,11 +97,15 @@ func main() {
 	http.HandleFunc("/order/create", createOrderHandler)
 
 	http.HandleFunc("/order/cancel/", cancelOrderHandler)
+
+	http.HandleFunc("/customers", customersHandler)
 	http.HandleFunc("/customers/", customersHandler)
 
 	// Customer routes
+	http.HandleFunc("/customer/view/", viewCustomerHandler)
+	// GET - shows the form
+
 	http.HandleFunc("/customer/add", addCustomerHandler)
-	http.HandleFunc("/customers/add", addCustomerSubmitHandler)
 	http.HandleFunc("/customer/edit/", editCustomerHandler)
 	http.HandleFunc("/customer/delete/", deleteCustomerHandler)
 	http.HandleFunc("/customer/update/", updateCustomerHandler)

@@ -1,9 +1,12 @@
+-- 1. إنشاء الجداول مع التعديلات المطلوبة مدمجة
+
 CREATE TABLE Users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_deleted BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE Products (
@@ -20,18 +23,22 @@ CREATE TABLE Orders (
     user_id INT,
     total_price DECIMAL(10, 2) NOT NULL,
     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES Users(id)
+    status VARCHAR(20) DEFAULT 'Processing',
+    FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE OrderItems (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT,
-    product_id INT,
+    product_id INT NULL,
     quantity INT NOT NULL,
     price DECIMAL(10, 2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES Orders(id),
-    FOREIGN KEY (product_id) REFERENCES Products(id)
+    FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE SET NULL
 );
+
+-- 2. إدخال بيانات المستخدمين
+
 INSERT INTO Users (name, email, password)
 VALUES 
     ('Alice Johnson', 'alice.johnson@example.com', 'alice123'),
@@ -40,6 +47,7 @@ VALUES
     ('David Williams', 'david.williams@example.com', 'david012'),
     ('Emma Davis', 'emma.davis@example.com', 'emma345');
 
+-- 3. إدخال بيانات المنتجات
 
 INSERT INTO Products (name, description, price, quantity)
 VALUES 
@@ -49,6 +57,8 @@ VALUES
     ('Dell XPS 13', 'Dell XPS 13 laptop with Intel Core i7', 1499.00, 10),
     ('Sony WH-1000XM4', 'Sony noise-canceling wireless headphones', 349.00, 20);
 
+-- 4. إدخال بيانات الطلبات
+
 INSERT INTO Orders (user_id, total_price)
 VALUES 
     (1, 2499.00),  -- Alice Johnson
@@ -57,32 +67,12 @@ VALUES
     (4, 1500.00),  -- David Williams
     (5, 349.00);   -- Emma Davis
 
+-- 5. إدخال تفاصيل عناصر الطلبات
+
 INSERT INTO OrderItems (order_id, product_id, quantity, price)
 VALUES
     (1, 1, 1, 2499.00),  -- Alice ordered 1 MacBook Pro
     (2, 2, 1, 799.00),   -- Bob ordered 1 Samsung Galaxy S22
     (3, 4, 1, 1499.00),  -- Charlie ordered 1 Dell XPS 13
     (4, 3, 2, 150.00),   -- David ordered 2 pairs of Nike Air Max 270
-    (5, 5, 1, 349.00);   -- Emma ordered 1 Sony WH-1000XM4 headphones;
-
-
-
-
-
---edit so i can delete the user
-
-ALTER TABLE orders DROP FOREIGN KEY orders_ibfk_1;
-ALTER TABLE orders 
-ADD CONSTRAINT orders_ibfk_1 
-FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE;
-ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE;
-
-ALTER TABLE orders ADD COLUMN status VARCHAR(20) DEFAULT 'Processing';
-
-ALTER TABLE OrderItems MODIFY product_id INT NULL;
-
--- 2. ثم عدل العلاقة لاستخدام ON DELETE SET NULL
-ALTER TABLE OrderItems DROP FOREIGN KEY orderitems_ibfk_2;
-ALTER TABLE OrderItems 
-ADD CONSTRAINT orderitems_ibfk_2 
-FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE SET NULL;
+    (5, 5, 1, 349.00);   -- Emma ordered 1 Sony WH-1000XM4 headphones

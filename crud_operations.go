@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
 	_ "github.com/go-sql-driver/mysql"
 
@@ -23,21 +24,24 @@ type Snap struct {
 	Address  string
 	Port     string
 	Username string
-}
-type Pagination struct {
-	CurrentPage int
-	PerPage     int
-	TotalItems  int
-	TotalPages  int
+	Database string
 }
 
 // Snaps is a slice of Snap structs
 var snaps = []Snap{
 	{
 		Name:     "Snap1",
-		Address:  "192.168.75.28", //"192.168.137.173",
+		Address:  "192.168.75.28",
 		Port:     "8081",
-		Username: "elite", //"hp",
+		Username: "elite",
+		Database: "ecommerce_db1",
+	},
+	{
+		Name:     "Snap2",
+		Address:  "192.168.75.28",
+		Port:     "9090",
+		Username: "elite",
+		Database: "ecommerce_db2",
 	},
 }
 
@@ -86,9 +90,15 @@ type OrderItem struct {
 	Price       float64
 	ProductName string
 }
+type Pagination struct {
+	CurrentPage int
+	PerPage     int
+	TotalItems  int
+	TotalPages  int
+}
 
 func NewPagination(currentPage, perPage, totalItems int) Pagination {
-	totalPages := (totalItems + perPage - 1) / perPage
+	totalPages := (totalItems + perPage - 1) / perPage // Round up division
 	return Pagination{
 		CurrentPage: currentPage,
 		PerPage:     perPage,
@@ -96,7 +106,6 @@ func NewPagination(currentPage, perPage, totalItems int) Pagination {
 		TotalPages:  totalPages,
 	}
 }
-
 func (p Pagination) HasPrev() bool {
 	return p.CurrentPage > 1
 }
@@ -111,11 +120,6 @@ func (p Pagination) Pages() []int {
 		pages = append(pages, i)
 	}
 	return pages
-}
-
-func CreateCustomer(name, email, password string) error {
-	_, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", name, email, password)
-	return err
 }
 
 func GetCustomers() ([]User, error) {
@@ -184,24 +188,6 @@ func DeleteProduct(id int) error {
 	return err
 }
 
-// func DeleteProduct(id int) error {
-// 	tx, err := db.Begin()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	_, err = tx.Exec("DELETE FROM OrderItems WHERE product_id = ?", id)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return err
-// 	}
-// 	_, err = tx.Exec("DELETE FROM Products WHERE id = ?", id)
-// 	if err != nil {
-// 		tx.Rollback()
-// 		return err
-// 	}
-// 	return tx.Commit()
-// }
-
 func CreateOrder(userID int, totalPrice float64) (int64, error) {
 	result, err := db.Exec("INSERT INTO orders (user_id, total_price) VALUES (?, ?)", userID, totalPrice)
 	if err != nil {
@@ -214,46 +200,6 @@ func CreateOrder(userID int, totalPrice float64) (int64, error) {
 func UpdateOrder(id int, totalPrice float64) error {
 	_, err := db.Exec("UPDATE orders SET total_price = ? WHERE id = ?", totalPrice, id)
 	return err
-}
-
-func GetAllCustomersWithOrderStats() ([]Customer, error) {
-	query := `
-		SELECT 
-			u.id,
-			u.name,
-			u.email,
-			COUNT(o.id) AS order_count,
-			COALESCE(SUM(o.total_price), 0) AS total_spent
-		FROM 
-			Users u
-		LEFT JOIN 
-			Orders o ON u.id = o.user_id
-		GROUP BY 
-			u.id, u.name, u.email
-	`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var customers []Customer
-
-	for rows.Next() {
-		var c Customer
-		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.OrderCount, &c.TotalSpent)
-		if err != nil {
-			return nil, err
-		}
-		customers = append(customers, c)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, err
-	}
-	fmt.Printf("Customers: %+v\n", customers)
-	return customers, nil
 }
 
 func CreateOrderItem(orderID int64, productID, quantity int, price float64) error {
@@ -342,29 +288,51 @@ func addTableSubmitHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // replicateToSlaves replicates database updates to all slave nodes
-func replicateToSlaves(query string) {
-	body := map[string]string{"query": query}
-	jsonData, err := json.Marshal(body)
-	if err != nil {
-		log.Printf("Error encoding JSON: %v", err)
-		return
-	}
+func replicateToSlaves(query string, user string, password string) {
 
+	var wg sync.WaitGroup
+	// Loop through each slave node and send the request concurrently
 	for _, snap := range snaps {
-		url := fmt.Sprintf("http://%s:%s/replicate", snap.Address, snap.Port)
-		resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-		if err != nil {
-			log.Printf("Failed to replicate to %s (%s): %v", snap.Name, snap.Address, err)
-			continue
+		// Create a map to hold the request data
+		body := map[string]string{
+			"query":    query,
+			"user":     user,
+			"password": password,
+			"database": snap.Database,
 		}
-		defer resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK {
-			log.Printf("%s returned non-OK status: %v", snap.Name, resp.Status)
-		} else {
-			log.Printf("Replication successful to %s (%s)", snap.Name, snap.Address)
+		// Marshal the map into a JSON format
+		jsonData, err := json.Marshal(body)
+		if err != nil {
+			log.Printf("Error encoding JSON: %v", err)
+			return
 		}
+		wg.Add(1)
+		go func(snap Snap) {
+			defer wg.Done()
+
+			// Build the URL for the slave node
+			url := fmt.Sprintf("http://%s:%s/replicate", snap.Address, snap.Port)
+
+			// Send the POST request to the slave
+			resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+			if err != nil {
+				log.Printf("Failed to replicate to %s (%s): %v", snap.Name, snap.Address, err)
+				return
+			}
+			defer resp.Body.Close()
+
+			// Check the response status from the slave
+			if resp.StatusCode != http.StatusOK {
+				log.Printf("%s returned non-OK status: %v", snap.Name, resp.Status)
+			} else {
+				log.Printf("Replication successful to %s (%s)", snap.Name, snap.Address)
+			}
+		}(snap)
 	}
+
+	// Wait for all goroutines to finish
+	wg.Wait()
 }
 
 // Database handlers
@@ -919,4 +887,9 @@ func getTableData(db *sql.DB, tableName string) ([][]interface{}, error) {
 	}
 
 	return results, nil
+}
+
+func CreateCustomer(name, email, password string) error {
+	_, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)", name, email, password)
+	return err
 }
