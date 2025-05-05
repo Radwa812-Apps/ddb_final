@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	
+
 	"log"
 	"net/http"
 	"strconv"
@@ -12,7 +12,6 @@ import (
 
 // *****************Customer***********
 // *********************************************************************
-
 
 func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/customer/delete/")
@@ -43,7 +42,10 @@ func deleteCustomerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
+	// Replication to master
+	query := fmt.Sprintf("DELETE FROM users WHERE id = %s", id)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 	// Re-enable checks and commit
 	_, err = tx.Exec("SET FOREIGN_KEY_CHECKS=1")
 	if err != nil {
@@ -77,12 +79,19 @@ func updateCustomerHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error updating customer", http.StatusInternalServerError)
 			return
 		}
+		// Replication to master
+		query := fmt.Sprintf("UPDATE users SET name = '%s', email = '%s' WHERE id = %s", name, email, id)
+		replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+		replicateToSlaves(query, "root", "rootroot")
 	} else {
 		_, err := db.Exec("UPDATE users SET name = ?, email = ?, password = ? WHERE id = ?", name, email, password, id)
 		if err != nil {
 			http.Error(w, "Error updating customer", http.StatusInternalServerError)
 			return
 		}
+		query := fmt.Sprintf("UPDATE users SET name = '%s', email = '%s', password = %s WHERE id = %s", name, email, password, id)
+		replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+		replicateToSlaves(query, "root", "rootroot")
 	}
 
 	http.Redirect(w, r, "/customers", http.StatusSeeOther)
@@ -117,8 +126,6 @@ func editCustomerHandler(w http.ResponseWriter, r *http.Request) {
 //****************************Order**************
 //********************************************************
 
-
-
 func cancelOrderHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/order/cancel/")
 	id, err := strconv.Atoi(idStr)
@@ -133,6 +140,10 @@ func cancelOrderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error cancelling order", http.StatusInternalServerError)
 		return
 	}
+	// Replication to master
+	query := fmt.Sprintf("UPDATE orders SET status = 'Cancelled' WHERE id = %d", id)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 
 	http.Redirect(w, r, "/orders", http.StatusSeeOther)
 }
@@ -153,6 +164,10 @@ func updateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating order", http.StatusInternalServerError)
 		return
 	}
+	// Replication to master
+	query := fmt.Sprintf("UPDATE orders SET total_price = '%s' WHERE id = '%s'", totalPrice, id)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 	w.Write([]byte("Order updated successfully"))
 }
 
@@ -169,7 +184,6 @@ func viewOrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //***************Product handlers***********
-
 
 func createProductHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -204,7 +218,11 @@ func createProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error creating product", http.StatusInternalServerError)
 		return
 	}
-
+	// Replication to master
+	query := fmt.Sprintf("INSERT INTO products (name, description, price, quantity) VALUES ('%s', '%s', %f, %d)",
+		name, description, price, quantity)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 	// Redirect to products page
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
@@ -222,7 +240,10 @@ func deleteProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error deleting product", http.StatusInternalServerError)
 		return
 	}
-
+	// Replication to master
+	query := fmt.Sprintf("DELETE FROM products WHERE id = %d", id)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 func updateProductHandler(w http.ResponseWriter, r *http.Request) {
@@ -255,7 +276,11 @@ func updateProductHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error updating product", http.StatusInternalServerError)
 		return
 	}
-
+	// Replication to master
+	query := fmt.Sprintf("UPDATE products SET name = '%s', description = '%s', price = %f, quantity = %d WHERE id = %d",
+		name, description, price, quantity, id)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "root", "rootroot")
 	http.Redirect(w, r, "/products", http.StatusSeeOther)
 }
 func editProductHandler(w http.ResponseWriter, r *http.Request) {
@@ -328,7 +353,10 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error creating order: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-
+		// Replication to master
+		query := fmt.Sprintf("INSERT INTO orders (user_id, total_price) VALUES (%d, %f)", userID, totalPrice)
+		replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+		replicateToSlaves(query, "root", "rootroot")
 		// Add order items
 		for i, productIDStr := range productIDs {
 			productID, err := strconv.Atoi(productIDStr)
@@ -354,6 +382,11 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "Error adding order item: "+err.Error(), http.StatusInternalServerError)
 				return
 			}
+			// Replication to master and slaves
+			query := fmt.Sprintf("INSERT INTO orderItems (order_id, product_id, quantity, price) VALUES (%d, %d, %d, %f)",
+				orderID, productID, quantity, price)
+			replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+			replicateToSlaves(query, "root", "rootroot")
 		}
 
 		http.Redirect(w, r, "/orders", http.StatusSeeOther)
@@ -390,213 +423,230 @@ func createOrderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func productsHandler(w http.ResponseWriter, r *http.Request) {
-    page := 1
-    if p := r.URL.Query().Get("page"); p != "" {
-        page, _ = strconv.Atoi(p)
-    }
-    
-    limit := 5
-    offset := (page - 1) * limit
-    
-    products, err := GetPaginatedProducts(offset, limit)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
-    
-    // Get total count for pagination
-    var total int
-    err = db.QueryRow("SELECT COUNT(*) FROM products").Scan(&total)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
 
-    data := struct {
-        Title     string
-        Products  []Product
-        Pagination Pagination
-    }{
-        Title:    "Products",
-        Products: products,
-        Pagination: NewPagination(page, limit, total),
-    }
+	limit := 5
+	offset := (page - 1) * limit
 
-    err = tmpl.ExecuteTemplate(w, "products.html", data)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    }
+	products, err := GetPaginatedProducts(offset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Get total count for pagination
+	var total int
+	err = db.QueryRow("SELECT COUNT(*) FROM products").Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := struct {
+		Title      string
+		Products   []Product
+		Pagination Pagination
+	}{
+		Title:      "Products",
+		Products:   products,
+		Pagination: NewPagination(page, limit, total),
+	}
+
+	err = tmpl.ExecuteTemplate(w, "products.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func ordersHandler(w http.ResponseWriter, r *http.Request) {
-    page := 1
-    if p := r.URL.Query().Get("page"); p != "" {
-        page, _ = strconv.Atoi(p)
-    }
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
 
-    limit := 5
-    offset := (page - 1) * limit
+	limit := 5
+	offset := (page - 1) * limit
 
-    orders, err := GetPaginatedOrders(offset, limit)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	orders, err := GetPaginatedOrders(offset, limit)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-    // Get total count for pagination
-    var total int
-    err = db.QueryRow("SELECT COUNT(*) FROM orders").Scan(&total)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	// Get total count for pagination
+	var total int
+	err = db.QueryRow("SELECT COUNT(*) FROM orders").Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-    data := struct {
-        Title      string
-        Orders     []Order
-        Pagination Pagination
-    }{
-        Title:      "Orders",
-        Orders:     orders,
-        Pagination: NewPagination(page, limit, total),
-    }
+	data := struct {
+		Title      string
+		Orders     []Order
+		Pagination Pagination
+	}{
+		Title:      "Orders",
+		Orders:     orders,
+		Pagination: NewPagination(page, limit, total),
+	}
 
-    err = tmpl.ExecuteTemplate(w, "orders.html", data)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    }
+	err = tmpl.ExecuteTemplate(w, "orders.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
-
 func customersHandler(w http.ResponseWriter, r *http.Request) {
-    page := 1
-    if p := r.URL.Query().Get("page"); p != "" {
-        page, _ = strconv.Atoi(p)
-    }
+	// Get pagination parameters
+	page := 1
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+	}
 
-    sort := r.URL.Query().Get("sort")
-    if sort == "" {
-        sort = "newest" // default sort
-    }
+	// Get sort parameter
+	sort := r.URL.Query().Get("sort")
+	if sort == "" {
+		sort = "newest" // default sort
+	}
 
-    customers, err := GetAllCustomersWithOrderStats(page, sort)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	// Get search query parameter
+	search := r.URL.Query().Get("search")
 
-    // Get total count of customers (without LIMIT)
-    var total int
-    err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-        return
-    }
+	// Get customers with search, sort, and pagination
+	customers, err := GetAllCustomersWithOrderStats(page, sort, search)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-    data := PageData{
-        Title:          "Customers",
-        CustomersStats: customers,
-        Pagination:     NewPagination(page, 5, total),
-        Sort:          sort,
-    }
+	// Get total count of customers (with search filter if applicable)
+	var total int
+	var countQuery string
+	var countArgs []interface{}
 
-    err = tmpl.ExecuteTemplate(w, "customers.html", data)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    }
+	if search != "" {
+		countQuery = "SELECT COUNT(*) FROM users WHERE name LIKE ? OR email LIKE ?"
+		searchTerm := "%" + search + "%"
+		countArgs = []interface{}{searchTerm, searchTerm}
+	} else {
+		countQuery = "SELECT COUNT(*) FROM users"
+	}
+
+	err = db.QueryRow(countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Prepare data for template
+	data := PageData{
+		Title:          "Customers",
+		CustomersStats: customers,
+		Pagination:     NewPagination(page, 5, total),
+		Sort:           sort,
+		SearchQuery:    search, // Pass search query to template
+	}
+
+	// Execute template
+	err = tmpl.ExecuteTemplate(w, "customers.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func viewCustomerHandler(w http.ResponseWriter, r *http.Request) {
-    idStr := strings.TrimPrefix(r.URL.Path, "/customer/view/")
-    id, err := strconv.Atoi(idStr)
-    if err != nil {
-        http.Error(w, "Invalid customer ID", http.StatusBadRequest)
-        return
-    }
+	idStr := strings.TrimPrefix(r.URL.Path, "/customer/view/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid customer ID", http.StatusBadRequest)
+		return
+	}
 
-    // Get customer details
-    customer, err := GetCustomerByID(id)
-    if err != nil {
-        http.Error(w, "Customer not found", http.StatusNotFound)
-        return
-    }
+	// Get customer details
+	customer, err := GetCustomerByID(id)
+	if err != nil {
+		http.Error(w, "Customer not found", http.StatusNotFound)
+		return
+	}
 
-    // Get customer orders
-    orders, err := GetCustomerOrders(id)
-    if err != nil {
-        http.Error(w, "Error fetching orders", http.StatusInternalServerError)
-        return
-    }
+	// Get customer orders
+	orders, err := GetCustomerOrders(id)
+	if err != nil {
+		http.Error(w, "Error fetching orders", http.StatusInternalServerError)
+		return
+	}
 
-    data := struct {
-        Customer User
-        Orders   []Order
-    }{
-        Customer: customer,
-        Orders:   orders,
-    }
+	data := struct {
+		Customer User
+		Orders   []Order
+	}{
+		Customer: customer,
+		Orders:   orders,
+	}
 
-    tmpl.ExecuteTemplate(w, "view-customer.html", data)
+	tmpl.ExecuteTemplate(w, "view-customer.html", data)
 }
 
-
-
 func addCustomerSubmitHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method != http.MethodPost {
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-    firstName := r.FormValue("firstName")
-    email := r.FormValue("email")
-    password := r.FormValue("password")
+	firstName := r.FormValue("firstName")
+	email := r.FormValue("email")
+	password := r.FormValue("password")
 
-    err := CreateCustomer(firstName, email, password)
-    if err != nil {
-        log.Printf("Error creating customer: %v", err)
-        http.Error(w, "Error creating customer", http.StatusInternalServerError)
-        return
-    }
+	err := CreateCustomer(firstName, email, password)
+	if err != nil {
+		log.Printf("Error creating customer: %v", err)
+		http.Error(w, "Error creating customer", http.StatusInternalServerError)
+		return
+	}
 
-    // Replication to master
-    query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
-        firstName, email, password)
-    replicateToMaster(query, "ecommerce_db", "root", "rootroot")
-    replicateToSlaves(query, "ecommerce_db1", "root", "rootroot")
+	// Replication to master
+	query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
+		firstName, email, password)
+	replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+	replicateToSlaves(query, "ecommerce_db1", "root")
 
-    // Redirect to customers page
-    http.Redirect(w, r, "/customers", http.StatusSeeOther)
+	// Redirect to customers page
+	http.Redirect(w, r, "/customers", http.StatusSeeOther)
 }
 
 func addCustomerHandler(w http.ResponseWriter, r *http.Request) {
-    if r.Method == http.MethodPost {
-        // Handle POST request (form submission)
-        firstName := r.FormValue("firstName")
-        email := r.FormValue("email")
-        password := r.FormValue("password")
+	if r.Method == http.MethodPost {
+		// Handle POST request (form submission)
+		firstName := r.FormValue("firstName")
+		email := r.FormValue("email")
+		password := r.FormValue("password")
 
-        err := CreateCustomer(firstName, email, password)
-        if err != nil {
-            log.Printf("Error creating customer: %v", err)
-            http.Error(w, "Error creating customer", http.StatusInternalServerError)
-            return
-        }
+		err := CreateCustomer(firstName, email, password)
+		if err != nil {
+			log.Printf("Error creating customer: %v", err)
+			http.Error(w, "Error creating customer", http.StatusInternalServerError)
+			return
+		}
 
-        // Replication
-        query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
-            firstName, email, password)
-        replicateToMaster(query, "ecommerce_db", "root", "rootroot")
-        replicateToSlaves(query, "ecommerce_db1", "root", "rootroot")
+		// Replication
+		query := fmt.Sprintf("INSERT INTO users (name, email, password) VALUES ('%s', '%s', '%s')",
+			firstName, email, password)
+		replicateToMaster(query, "ecommerce_db", "root", "rootroot")
+		replicateToSlaves(query, "root", "rootroot")
 
-        http.Redirect(w, r, "/customers", http.StatusSeeOther)
-        return
-    }
+		http.Redirect(w, r, "/customers", http.StatusSeeOther)
+		return
+	}
 
-    // Handle GET request (show form)
-    data := PageData{
-        Title: "Add Customer",
-    }
-    err := tmpl.ExecuteTemplate(w, "add-customer.html", data)
-    if err != nil {
-        http.Error(w, err.Error(), http.StatusInternalServerError)
-    }
+	// Handle GET request (show form)
+	data := PageData{
+		Title: "Add Customer",
+	}
+	err := tmpl.ExecuteTemplate(w, "add-customer.html", data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
