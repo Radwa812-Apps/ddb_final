@@ -45,13 +45,13 @@ var snaps = []Snap{
 		Username: "elite",
 		Database: "ecommerce_db",
 	},
-	// {
-	// 	Name:     "shahd",
-	// 	Address:  "192.168.75.4",
-	// 	Port:     "8081",
-	// 	Username: "elite",
-	// 	Database: "ecommerce_db",
-	// },
+	{
+		Name:     "shahd",
+		Address:  "192.168.205.4",
+		Port:     "8081",
+		Username: "elite",
+		Database: "ecommerce_db",
+	},
 }
 
 // User represents a user in the system
@@ -648,7 +648,7 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// فتح اتصال بقاعدة البيانات
-	dbConn, err := sql.Open("mysql", fmt.Sprintf("root:123456@tcp(127.0.0.1:3306)/%s", dbName))
+	dbConn, err := sql.Open("mysql", fmt.Sprintf("root:rootroot@tcp(127.0.0.1:3306)/%s", dbName))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
