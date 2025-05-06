@@ -20,12 +20,20 @@
             background-color: white;
             outline: none;
         }
+        .column-item {
+            transition: all 0.3s ease;
+        }
+        .column-item:hover {
+            background-color: #f3f4f6;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
+    <form action="/table/create?db={{.DBName}}" method="POST">
+
     <div class="flex h-screen">
-        <!-- Sidebar -->
-        <div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
+         <!-- Sidebar -->
+         <div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
             <div class="flex items-center space-x-2 px-4">
                 <i class="fas fa-database text-2xl"></i>
                 <span class="text-2xl font-extrabold">DB Manager</span>
@@ -56,19 +64,20 @@
                 </a>
             </nav>
         </div>
-    
 
         <!-- Main Content -->
         <div class="flex-1 ml-64">
             <!-- Top Navigation -->
             <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-gray-800">{{.Title}}</h1>
+                <h1 class="text-2xl font-bold text-gray-800">{{.Title}} (Database: {{.DBName}})</h1>
             </header>
 
             <!-- Form -->
             <main class="p-6">
                 <div class="bg-white rounded-lg shadow p-6">
-                    <form action="/table/create" method="POST" class="space-y-6">
+                    <form action="/table/create" method="POST" class="space-y-6" id="createTableForm">
+                        <input type="hidden" name="database" value="{{.DBName}}">
+                        
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1" for="name">Table Name</label>
                             <input class="input-field w-full" 
@@ -79,8 +88,80 @@
                                 placeholder="Enter table name">
                         </div>
 
+                        <!-- Columns Section -->
+                        <div>
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Columns</label>
+                                <button type="button" id="addColumnBtn" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                    <i class="fas fa-plus mr-1"></i>Add Column
+                                </button>
+                            </div>
+                            
+                            <div id="columnsContainer" class="space-y-3">
+                                <!-- Default ID column -->
+                                <div class="column-item p-3 border border-gray-200 rounded-md">
+                                    <div class="grid grid-cols-12 gap-4 items-center">
+                                        <div class="col-span-3">
+                                            <input type="text" name="columns[0][name]" value="id" 
+                                                class="input-field w-full" placeholder="Column name" required>
+                                        </div>
+                                        <div class="col-span-2">
+                                            <select name="columns[0][type]" class="input-field w-full" required>
+                                                <option value="INT" selected>INT</option>
+                                                <option value="VARCHAR">VARCHAR</option>
+                                                <option value="TEXT">TEXT</option>
+                                                <option value="DATE">DATE</option>
+                                                <option value="DATETIME">DATETIME</option>
+                                                <option value="BOOLEAN">BOOLEAN</option>
+                                                <option value="FLOAT">FLOAT</option>
+                                                <option value="DECIMAL">DECIMAL</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-span-1">
+                                            <input type="number" name="columns[0][length]" 
+                                                class="input-field w-full" placeholder="Length" value="11">
+                                        </div>
+                                        <div class="col-span-2 flex items-center space-x-2">
+                                            <input type="checkbox" name="columns[0][primary]" id="col0-primary" checked 
+                                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                            <label for="col0-primary" class="text-sm text-gray-700">Primary</label>
+                                        </div>
+                                        <div class="col-span-2 flex items-center space-x-2">
+                                            <input type="checkbox" name="columns[0][auto_increment]" id="col0-auto" checked 
+                                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                            <label for="col0-auto" class="text-sm text-gray-700">Auto Inc</label>
+                                        </div>
+                                        <div class="col-span-2 flex items-center space-x-2">
+                                            <input type="checkbox" name="columns[0][nullable]" id="col0-nullable" 
+                                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                                            <label for="col0-nullable" class="text-sm text-gray-700">Nullable</label>
+                                        </div>
+                                        <div class="col-span-2 flex justify-end">
+                                            <button type="button" class="text-red-500 hover:text-red-700 disabled:opacity-50" disabled>
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Relationships Section -->
+                        <div id="relationshipsSection" class="hidden">
+                            <div class="flex justify-between items-center mb-2">
+                                <label class="block text-sm font-medium text-gray-700">Relationships</label>
+                                <button type="button" id="addRelationshipBtn" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                                    <i class="fas fa-plus mr-1"></i>Add Relationship
+                                </button>
+                            </div>
+                            
+                            <div id="relationshipsContainer" class="space-y-3">
+                                <!-- Relationships will be added here dynamically -->
+                            </div>
+                        </div>
+
                         <div class="flex justify-end space-x-3">
-                            <a href="/tables" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <a href="/tables?db={{.DBName}}" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                 Cancel
                             </a>
                             <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
@@ -92,5 +173,156 @@
             </main>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let columnCounter = 1;
+            let relationshipCounter = 0;
+            
+            // Add Column
+            document.getElementById('addColumnBtn').addEventListener('click', function() {
+                const container = document.getElementById('columnsContainer');
+                const newColumn = document.createElement('div');
+                newColumn.className = 'column-item p-3 border border-gray-200 rounded-md';
+                newColumn.innerHTML = `
+                    <div class="grid grid-cols-12 gap-4 items-center">
+                        <div class="col-span-3">
+                            <input type="text" name="columns[${columnCounter}][name]" 
+                                class="input-field w-full" placeholder="Column name" required>
+                        </div>
+                        <div class="col-span-2">
+                            <select name="columns[${columnCounter}][type]" class="input-field w-full" required>
+                                <option value="VARCHAR" selected>VARCHAR</option>
+                                <option value="INT">INT</option>
+                                <option value="TEXT">TEXT</option>
+                                <option value="DATE">DATE</option>
+                                <option value="DATETIME">DATETIME</option>
+                                <option value="BOOLEAN">BOOLEAN</option>
+                                <option value="FLOAT">FLOAT</option>
+                                <option value="DECIMAL">DECIMAL</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1">
+                            <input type="number" name="columns[${columnCounter}][length]" 
+                                class="input-field w-full" placeholder="Length" value="255">
+                        </div>
+                        <div class="col-span-2 flex items-center space-x-2">
+                            <input type="checkbox" name="columns[${columnCounter}][primary]" id="col${columnCounter}-primary" 
+                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="col${columnCounter}-primary" class="text-sm text-gray-700">Primary</label>
+                        </div>
+                        <div class="col-span-2 flex items-center space-x-2">
+                            <input type="checkbox" name="columns[${columnCounter}][auto_increment]" id="col${columnCounter}-auto" 
+                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="col${columnCounter}-auto" class="text-sm text-gray-700">Auto Inc</label>
+                        </div>
+                        <div class="col-span-2 flex items-center space-x-2">
+                            <input type="checkbox" name="columns[${columnCounter}][nullable]" id="col${columnCounter}-nullable" 
+                                class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                            <label for="col${columnCounter}-nullable" class="text-sm text-gray-700">Nullable</label>
+                        </div>
+                        <div class="col-span-2 flex justify-end">
+                            <button type="button" class="text-red-500 hover:text-red-700 remove-column">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(newColumn);
+                columnCounter++;
+                
+                // Show relationships section after adding at least one non-primary column
+                document.getElementById('relationshipsSection').classList.remove('hidden');
+            });
+            
+            // Remove Column
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-column') || e.target.closest('.remove-column')) {
+                    const columnItem = e.target.closest('.column-item');
+                    columnItem.remove();
+                    
+                    // Hide relationships section if no columns left (except primary)
+                    if (document.querySelectorAll('.column-item').length <= 1) {
+                        document.getElementById('relationshipsSection').classList.add('hidden');
+                    }
+                }
+            });
+            
+            // Add Relationship
+            document.getElementById('addRelationshipBtn').addEventListener('click', function() {
+                const container = document.getElementById('relationshipsContainer');
+                const newRelationship = document.createElement('div');
+                newRelationship.className = 'relationship-item p-3 border border-gray-200 rounded-md';
+                newRelationship.innerHTML = `
+                    <div class="grid grid-cols-12 gap-4 items-center">
+                        <div class="col-span-3">
+                            <select name="relationships[${relationshipCounter}][column]" class="input-field w-full" required>
+                                ${getColumnOptions()}
+                            </select>
+                        </div>
+                        <div class="col-span-2">
+                            <select name="relationships[${relationshipCounter}][type]" class="input-field w-full" required>
+                                <option value="belongsTo">Belongs To</option>
+                                <option value="hasOne">Has One</option>
+                                <option value="hasMany">Has Many</option>
+                            </select>
+                        </div>
+                        <div class="col-span-4">
+                            <select name="relationships[${relationshipCounter}][related_table]" class="input-field w-full" required>
+                                <option value="">Select Table</option>
+                                ${getTableOptions()}
+                            </select>
+                        </div>
+                        <div class="col-span-3 flex justify-end">
+                            <button type="button" class="text-red-500 hover:text-red-700 remove-relationship">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(newRelationship);
+                relationshipCounter++;
+            });
+            
+            // Remove Relationship
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('remove-relationship') || e.target.closest('.remove-relationship')) {
+                    e.target.closest('.relationship-item').remove();
+                }
+            });
+            
+            // Helper function to get column options for relationships
+            function getColumnOptions() {
+                const columns = document.querySelectorAll('input[name^="columns["][name$="][name]"]');
+                let options = '';
+                
+                columns.forEach((column, index) => {
+                    // Skip primary key column
+                    const isPrimary = document.querySelector(`input[name="columns[${index}][primary]"]`)?.checked;
+                    if (!isPrimary) {
+                        const colName = column.value || column.placeholder;
+                        options += `<option value="${colName}">${colName}</option>`;
+                    }
+                });
+                
+                return options || '<option value="">No columns available</option>';
+            }
+            
+            // Helper function to get table options
+            function getTableOptions() {
+    const tables = [{{ range .TablesList }}"{{ . }}",{{ end }}];
+    let options = '';
+    
+    tables.forEach(table => {
+        if (table) { // تأكد من أن اسم الجدول غير فارغ
+            options += `<option value="${table}">${table}</option>`;
+        }
+    });
+    
+    return options || '<option value="">No tables available</option>';
+}}
+);
+    </script>
+    </form>
 </body>
 </html>

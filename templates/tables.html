@@ -10,38 +10,57 @@
 <body class="bg-gray-100">
     <div class="flex h-screen">
         <!-- Sidebar -->
-        <div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
-            <div class="flex items-center space-x-2 px-4">
-                <i class="fas fa-database text-2xl"></i>
-                <span class="text-2xl font-extrabold">DB Manager</span>
-            </div>
-            
-            <nav>
-                <!-- In your sidebar navigation -->
-                <a href="/databases" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-database mr-2"></i>Databases
-                </a>
-                <a href="/tables" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700 bg-indigo-700">
-                    <i class="fas fa-table mr-2"></i>Tables
-                </a>
-                <a href="/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
-                </a>
-                <a href="/products" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-boxes mr-2"></i>Products
-                </a>
-                <a href="/orders" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-shopping-cart mr-2"></i>Orders
-                </a>
-                <a href="/customers" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-users mr-2"></i>Customers
-                </a>
-                <a href="/reports" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
-                    <i class="fas fa-chart-bar mr-2"></i>Reports
-                </a>
-            </nav>
-        </div>
+       <!-- Sidebar -->
+{{if eq .DBName "ecommerce_db"}}
+<div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
+    <div class="flex items-center space-x-2 px-4">
+        <i class="fas fa-database text-2xl"></i>
+        <span class="text-2xl font-extrabold">DB Manager</span>
+    </div>
     
+    <nav>
+        <!-- <a href="/databases" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-database mr-2"></i>Databases
+        </a> -->
+        <!-- <a href="/tables" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700 bg-indigo-700">
+            <i class="fas fa-table mr-2"></i>Tables
+        </a> -->
+        <a href="/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+        </a>
+        <a href="/products" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-boxes mr-2"></i>Products
+        </a>
+        <a href="/orders" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-shopping-cart mr-2"></i>Orders
+        </a>
+        <a href="/customers" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-users mr-2"></i>Customers
+        </a>
+        <a href="/reports" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-chart-bar mr-2"></i>Reports
+        </a>
+    </nav>
+</div>
+{{else}}
+<!-- Sidebar الافتراضي أو لأي داتا بيز تانية -->
+<div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
+    <div class="flex items-center space-x-2 px-4">
+        <i class="fas fa-database text-2xl"></i>
+        <span class="text-2xl font-extrabold">DB Manager</span>
+    </div>
+    
+    <nav>
+        <a href="/databases" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+            <i class="fas fa-database mr-2"></i>Databases
+        </a>
+        <!-- <a href="/tables" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700 bg-indigo-700">
+            <i class="fas fa-table mr-2"></i>Tables
+        </a> -->
+    </nav>
+</div>
+{{end}}
+
 
         <!-- Main Content -->
         <div class="flex-1 ml-64">
@@ -67,17 +86,17 @@
                         <div class="p-4 hover:bg-gray-50 flex justify-between items-center">
                             <div class="flex items-center">
                                 <i class="fas fa-table text-indigo-600 mr-3"></i>
-                                <a href="/table/columns/{{.}}" class="font-medium hover:text-indigo-600">{{.}}</a>
+                                <!-- تغيير الرابط هنا -->
+                                <a href="/table/rows/{{.}}?db={{$.DBName}}" class="font-medium hover:text-indigo-600">{{.}}</a>
+                            
                             </div>
                             <div>
-                                <a href="/table/edit/{{.}}" class="text-blue-600 hover:text-blue-800 mr-4">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="/table/delete/{{.}}" class="text-red-600 hover:text-red-800">
+                                <a href="/table/delete/{{.}}?db={{$.DBName}}" class="text-red-600 hover:text-red-800">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
                         </div>
+                        
                         {{end}}
                     </div>
                 </div>

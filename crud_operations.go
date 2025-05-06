@@ -12,7 +12,8 @@ import (
 	"os"
 	"strings"
 	"sync"
-
+"regexp"
+	"errors"
 	_ "github.com/go-sql-driver/mysql"
 
 	_ "github.com/lib/pq"
@@ -591,14 +592,47 @@ func tablesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addTableHandler(w http.ResponseWriter, r *http.Request) {
+	// استخراج اسم قاعدة البيانات من URL
+	dbName := r.URL.Query().Get("db")
+	if dbName == "" {
+		http.Error(w, "Database name is required", http.StatusBadRequest)
+		return
+	}
+
+	// جلب قائمة الجداول المتاحة من قاعدة البيانات
+	tables, err := getDatabaseTables(dbName)
+	if err != nil {
+		http.Error(w, "Failed to fetch tables: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// تنفيذ القالب مع جميع البيانات المطلوبة
 	tmpl.ExecuteTemplate(w, "add_table.html", map[string]interface{}{
-		"Title": "Create New Table",
+		"Title":      "Create New Table",
+		"DBName":     dbName,
+		"TablesList": tables, // قائمة الجداول للعلاقات
 	})
 }
+
+
+
 
 func createTableHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// تحليل بيانات النموذج
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Error parsing form data", http.StatusBadRequest)
+		return
+	}
+
+	// الحصول على اسم قاعدة البيانات والجدول
+	dbName := r.FormValue("database") // تغيير من Query إلى FormValue
+	if dbName == "" {
+		http.Error(w, "Missing database name", http.StatusBadRequest)
 		return
 	}
 
@@ -608,15 +642,77 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := db.Exec(fmt.Sprintf("CREATE TABLE %s (id SERIAL PRIMARY KEY);", tableName))
+	// فتح اتصال بقاعدة البيانات
+	dbConn, err := sql.Open("mysql", fmt.Sprintf("root:123456@tcp(127.0.0.1:3306)/%s", dbName))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	defer dbConn.Close()
 
-	http.Redirect(w, r, "/tables", http.StatusSeeOther)
+	// بدء معاملة (Transaction)
+	tx, err := dbConn.Begin()
+	if err != nil {
+		http.Error(w, "Failed to begin transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback() // سيتم التراجع إذا لم تكتمل المعاملة
+
+	// 1. إنشاء الجدول الأساسي مع الأعمدة
+	columns := parseColumns(r.Form)
+	createTableSQL := buildCreateTableSQL(tableName, columns)
+	if _, err := tx.Exec(createTableSQL); err != nil {
+		http.Error(w, "Error creating table: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 2. معالجة العلاقات
+	relationships := parseRelationships(r.Form)
+	fmt.Printf("Relationships: %+v\n", relationships) // للتصحيح
+
+	if err := createRelationships(dbConn, tableName, relationships); err != nil {
+		http.Error(w, "Error creating relationships: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	for _, rel := range relationships {
+		var alterSQL string
+		switch rel["type"] {
+		case "belongsTo":
+			alterSQL = fmt.Sprintf(
+				"ALTER TABLE `%s` ADD COLUMN `%s_id` INT, "+
+					"ADD CONSTRAINT `fk_%s_%s` FOREIGN KEY (`%s_id`) REFERENCES `%s`(`id`)",
+				tableName, rel["related_table"],
+				tableName, rel["related_table"],
+				rel["related_table"], rel["related_table"])
+
+		case "hasOne", "hasMany":
+			alterSQL = fmt.Sprintf(
+				"ALTER TABLE `%s` ADD COLUMN `%s_id` INT, "+
+					"ADD CONSTRAINT `fk_%s_%s` FOREIGN KEY (`%s_id`) REFERENCES `%s`(`id`)",
+				rel["related_table"], tableName,
+				rel["related_table"], tableName,
+				tableName, tableName)
+
+		default:
+			http.Error(w, "Unknown relationship type: "+rel["type"], http.StatusBadRequest)
+			return
+		}
+
+		if _, err := tx.Exec(alterSQL); err != nil {
+			http.Error(w, "Error creating relationship: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// إتمام المعاملة
+	if err := tx.Commit(); err != nil {
+		http.Error(w, "Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/tables?db="+dbName, http.StatusSeeOther)
 }
-
 func editTableHandler(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
@@ -635,6 +731,8 @@ func editTableHandler(w http.ResponseWriter, r *http.Request) {
 		"TableName": tableName,
 	})
 }
+
+
 
 func updateTableHandler(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")
@@ -660,27 +758,265 @@ func updateTableHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/tables", http.StatusSeeOther)
 }
 
+
+
+func parseRelationships(form url.Values) []map[string]string {
+	var relationships []map[string]string
+	i := 0
+
+	for {
+		col := form.Get(fmt.Sprintf("relationships[%d][column]", i))
+		if col == "" {
+			break
+		}
+
+		relType := form.Get(fmt.Sprintf("relationships[%d][type]", i))
+		relatedTable := form.Get(fmt.Sprintf("relationships[%d][related_table]", i))
+
+		relationships = append(relationships, map[string]string{
+			"column":        col,
+			"type":          relType,
+			"related_table": relatedTable,
+		})
+		i++
+	}
+
+	return relationships
+}
+func parseColumns(form url.Values) []map[string]interface{} {
+	var columns []map[string]interface{}
+	i := 0
+
+	for {
+		name := form.Get(fmt.Sprintf("columns[%d][name]", i))
+		if name == "" {
+			break
+		}
+
+		colType := form.Get(fmt.Sprintf("columns[%d][type]", i))
+		length := form.Get(fmt.Sprintf("columns[%d][length]", i))
+		primary := form.Get(fmt.Sprintf("columns[%d][primary]", i)) == "on"
+		autoInc := form.Get(fmt.Sprintf("columns[%d][auto_increment]", i)) == "on"
+		nullable := form.Get(fmt.Sprintf("columns[%d][nullable]", i)) == "on"
+
+		columns = append(columns, map[string]interface{}{
+			"name":           name,
+			"type":           colType,
+			"length":         length,
+			"primary":        primary,
+			"auto_increment": autoInc,
+			"nullable":       nullable,
+		})
+		i++
+	}
+
+	return columns
+}
+
+func buildCreateTableSQL(tableName string, columns []map[string]interface{}) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("CREATE TABLE `%s` (\n", tableName))
+
+	for i, col := range columns {
+		if i > 0 {
+			sb.WriteString(",\n")
+		}
+
+		sb.WriteString(fmt.Sprintf("  `%s` %s", col["name"], col["type"]))
+
+		if length, ok := col["length"].(string); ok && length != "" {
+			sb.WriteString(fmt.Sprintf("(%s)", length))
+		}
+
+		if !col["nullable"].(bool) {
+			sb.WriteString(" NOT NULL")
+		}
+
+		if col["auto_increment"].(bool) {
+			sb.WriteString(" AUTO_INCREMENT")
+		}
+
+		if col["primary"].(bool) {
+			sb.WriteString(" PRIMARY KEY")
+		}
+	}
+
+	sb.WriteString("\n)")
+	return sb.String()
+}
+func createRelationships(db *sql.DB, tableName string, relationships []map[string]string) error {
+	for _, rel := range relationships {
+		var sql string
+		switch rel["type"] {
+		case "belongsTo":
+			sql = fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s_id` INT", tableName, rel["related_table"])
+		case "hasOne", "hasMany":
+			// في حالة hasOne/hasMany نضيف الفورين كي في الجدول الآخر
+			continue // سنتعامل معه في جدول آخر
+		default:
+			continue
+		}
+
+		if _, err := db.Exec(sql); err != nil {
+			return fmt.Errorf("failed to create relationship: %v", err)
+		}
+	}
+	return nil
+}
+
+func getDatabaseTables(dbName string) ([]string, error) {
+	var tables []string
+	rows, err := db.Query(fmt.Sprintf("SHOW TABLES FROM `%s`", dbName))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var table string
+		if err := rows.Scan(&table); err != nil {
+			return nil, err
+		}
+		tables = append(tables, table)
+	}
+	return tables, nil
+}
+
 func deleteTableHandler(w http.ResponseWriter, r *http.Request) {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 4 {
-		http.Error(w, "Invalid URL", http.StatusBadRequest)
+	// 1. استخراج اسم الجدول من URL
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Table name not provided", http.StatusBadRequest)
+		return
+	}
+	tableName := parts[3]
+
+	// 2. استخراج اسم القاعدة من query string
+	dbName := r.URL.Query().Get("db")
+	if dbName == "" {
+		http.Error(w, "Database name not provided in query", http.StatusBadRequest)
 		return
 	}
 
-	tableName := pathParts[3]
-	if tableName == "" {
-		http.Error(w, "Table name is required", http.StatusBadRequest)
+	// 3. تنفيذ الحذف
+	err := deleteTable(dbName, tableName)
+	if err != nil {
+		http.Error(w, "Failed to delete table: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	_, err := db.Exec(fmt.Sprintf("DROP TABLE %s;", tableName))
+	// 4. إعادة التوجيه
+	http.Redirect(w, r, "/tables?db="+dbName, http.StatusSeeOther)
+}
+
+func deleteTable(dbName, tableName string) error {
+	// التحقق من صلاحية الاسم
+	var validName = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
+	if !validName.MatchString(dbName) || !validName.MatchString(tableName) {
+		return errors.New("invalid database or table name")
+	}
+
+	query := fmt.Sprintf("DROP TABLE `%s`.`%s`", dbName, tableName)
+
+	_, err := db.Exec(query)
+	if err != nil {
+		return fmt.Errorf("error deleting table: %w", err)
+	}
+
+	fmt.Printf("✅ Table '%s' deleted from database '%s'\n", tableName, dbName)
+	return nil
+}
+
+
+func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. استخراج اسم الجدول
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Table name not provided", http.StatusBadRequest)
+		return
+	}
+	tableName := parts[3]
+
+	// 2. استخراج اسم القاعدة من query string
+	dbName := r.URL.Query().Get("db")
+	if dbName == "" {
+		http.Error(w, "Database name not provided", http.StatusBadRequest)
+		return
+	}
+
+	// 3. تنفيذ SQL: SELECT * FROM db.table LIMIT 100
+	query := fmt.Sprintf("SELECT * FROM `%s`.`%s` LIMIT 100", dbName, tableName)
+	rows, err := db.Query(query)
+	if err != nil {
+		http.Error(w, "Query error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	// 4. قراءة الأعمدة والصفوف
+	columns, err := rows.Columns()
+	if err != nil {
+		http.Error(w, "Failed to get columns: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var allRows [][]string
+	for rows.Next() {
+		cols := make([]interface{}, len(columns))
+		colPointers := make([]interface{}, len(columns))
+		for i := range cols {
+			colPointers[i] = &cols[i]
+		}
+
+		err := rows.Scan(colPointers...)
+		if err != nil {
+			http.Error(w, "Scan error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		rowData := make([]string, len(columns))
+		for i, col := range cols {
+			if col == nil {
+				rowData[i] = "NULL"
+			} else {
+				switch v := col.(type) {
+				case []byte:
+					rowData[i] = string(v)
+				default:
+					rowData[i] = fmt.Sprintf("%v", v)
+				}
+			}
+		}
+
+		allRows = append(allRows, rowData)
+	}
+
+	// 5. إرسال البيانات للـ template
+	data := struct {
+		Title   string
+		DBName  string
+		Table   string
+		Columns []string
+		Rows    [][]string
+	}{
+		Title:   "Table Rows",
+		DBName:  dbName,
+		Table:   tableName,
+		Columns: columns,
+		Rows:    allRows,
+	}
+
+	renderTemplate(w, "table_rows.html", data)
+}
+func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
+	t, err := template.ParseFiles("templates/" + tmpl)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	http.Redirect(w, r, "/tables", http.StatusSeeOther)
+	t.Execute(w, data)
 }
+
 
 func addColumnHandler(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")

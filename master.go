@@ -90,7 +90,7 @@ func main() {
 	http.HandleFunc("/column/add/", addColumnHandler)           // Show add column form
 	http.HandleFunc("/column/create/", createColumnHandler)     // Handle column creation
 	http.HandleFunc("/column/delete/", deleteColumnHandler)     // Handle column deletion
-
+	http.HandleFunc("/table/rows/", tableRowsHandler)
 	// Add to master.go in the routes section
 	http.HandleFunc("/orders", ordersHandler)
 	http.HandleFunc("/order/new", createOrderHandler)
