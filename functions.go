@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -161,61 +162,7 @@ func GetPaginatedOrders(offset, limit int) ([]Order, error) {
 
     return orders, nil
 }
-func GetAllCustomersWithOrderStats(page int, sort string) ([]Customer, error) {
-    limit := 5
-    offset := (page - 1) * limit
-    
-    baseQuery := `
-        SELECT 
-            u.id,
-            u.name,
-            u.email,
-            COUNT(o.id) AS order_count,
-            COALESCE(SUM(o.total_price), 0) AS total_spent
-        FROM 
-            Users u
-        LEFT JOIN 
-            Orders o ON u.id = o.user_id
-        GROUP BY 
-            u.id, u.name, u.email
-    `
-    
-    // Add sorting based on the sort parameter
-    var orderBy string
-    switch sort {
-    case "oldest":
-        orderBy = "u.created_at ASC"
-    case "name_asc":
-        orderBy = "u.name ASC"
-    case "name_desc":
-        orderBy = "u.name DESC"
-    case "most_orders":
-        orderBy = "order_count DESC"
-    default: // "newest" (default)
-        orderBy = "u.created_at DESC"
-    }
-    
-    // Add LIMIT and OFFSET for pagination
-    query := baseQuery + " ORDER BY " + orderBy + " LIMIT ? OFFSET ?"
 
-    rows, err := db.Query(query, limit, offset)
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
-
-    var customers []Customer
-    for rows.Next() {
-        var c Customer
-        err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.OrderCount, &c.TotalSpent)
-        if err != nil {
-            return nil, err
-        }
-        customers = append(customers, c)
-    }
-
-    return customers, nil
-}
 func GetPaginatedProducts(offset, limit int) ([]Product, error) {
     query := `
         SELECT id, name, description, price, quantity, created_at 
@@ -307,3 +254,82 @@ func GetPaginatedCustomersWithOrderStats(offset, limit int, orderBy string) ([]C
     return customers, nil
 }
 
+
+
+
+
+
+
+func GetAllCustomersWithOrderStats(page int, sort, search string) ([]Customer, error) {
+    limit := 5
+    offset := (page - 1) * limit
+    
+    baseQuery := `
+        SELECT 
+            u.id,
+            u.name,
+            u.email,
+            COUNT(o.id) AS order_count,
+            COALESCE(SUM(o.total_price), 0) AS total_spent
+        FROM 
+            Users u
+        LEFT JOIN 
+            Orders o ON u.id = o.user_id
+        WHERE 1=1
+    `
+    
+    // Add search condition if search term is provided
+    if search != "" {
+        baseQuery += " AND (u.name LIKE ? OR u.email LIKE ?)"
+    }
+    
+    baseQuery += `
+        GROUP BY 
+            u.id, u.name, u.email
+    `
+    
+    // Add sorting based on the sort parameter
+    var orderBy string
+    switch sort {
+    case "oldest":
+        orderBy = "u.created_at ASC"
+    case "name_asc":
+        orderBy = "u.name ASC"
+    case "name_desc":
+        orderBy = "u.name DESC"
+    case "most_orders":
+        orderBy = "order_count DESC"
+    default: // "newest" (default)
+        orderBy = "u.created_at DESC"
+    }
+    
+    // Add LIMIT and OFFSET for pagination
+    query := baseQuery + " ORDER BY " + orderBy + " LIMIT ? OFFSET ?"
+
+    var rows *sql.Rows
+    var err error
+    
+    if search != "" {
+        searchTerm := "%" + search + "%"
+        rows, err = db.Query(query, searchTerm, searchTerm, limit, offset)
+    } else {
+        rows, err = db.Query(query, limit, offset)
+    }
+    
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var customers []Customer
+    for rows.Next() {
+        var c Customer
+        err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.OrderCount, &c.TotalSpent)
+        if err != nil {
+            return nil, err
+        }
+        customers = append(customers, c)
+    }
+
+    return customers, nil
+}

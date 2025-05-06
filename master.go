@@ -25,6 +25,7 @@ type PageData struct {
 	Orders         []Order
 	Pagination     Pagination
 	Sort           string
+	SearchQuery    string
 }
 type CustomersPageData struct {
 	Title          string

@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
-"regexp"
-	"errors"
+
 	_ "github.com/go-sql-driver/mysql"
 
 	_ "github.com/lib/pq"
@@ -31,19 +32,26 @@ type Snap struct {
 // Snaps is a slice of Snap structs
 var snaps = []Snap{
 	{
-		Name:     "Snap1",
-		Address:  "192.168.75.28",
+		Name:     "aliaa",
+		Address:  "192.168.205.155",
 		Port:     "8081",
-		Username: "elite",
-		Database: "ecommerce_db1",
+		Username: "user",
+		Database: "ecommerce_db",
 	},
 	{
-		Name:     "Snap2",
-		Address:  "192.168.75.28",
-		Port:     "9090",
+		Name:     "radwa",
+		Address:  "192.168.205.71",
+		Port:     "8081",
 		Username: "elite",
-		Database: "ecommerce_db2",
+		Database: "ecommerce_db",
 	},
+	// {
+	// 	Name:     "shahd",
+	// 	Address:  "192.168.75.4",
+	// 	Port:     "8081",
+	// 	Username: "elite",
+	// 	Database: "ecommerce_db",
+	// },
 }
 
 // User represents a user in the system
@@ -614,9 +622,6 @@ func addTableHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
-
-
 func createTableHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -732,8 +737,6 @@ func editTableHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
-
 func updateTableHandler(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")
 	if len(pathParts) < 4 {
@@ -757,8 +760,6 @@ func updateTableHandler(w http.ResponseWriter, r *http.Request) {
 
 	http.Redirect(w, r, "/tables", http.StatusSeeOther)
 }
-
-
 
 func parseRelationships(form url.Values) []map[string]string {
 	var relationships []map[string]string
@@ -927,7 +928,6 @@ func deleteTable(dbName, tableName string) error {
 	return nil
 }
 
-
 func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. استخراج اسم الجدول
 	parts := strings.Split(r.URL.Path, "/")
@@ -1016,7 +1016,6 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data interface{}) {
 	}
 	t.Execute(w, data)
 }
-
 
 func addColumnHandler(w http.ResponseWriter, r *http.Request) {
 	pathParts := strings.Split(r.URL.Path, "/")

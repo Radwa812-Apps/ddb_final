@@ -484,43 +484,7 @@ func ordersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func customersHandler(w http.ResponseWriter, r *http.Request) {
-	page := 1
-	if p := r.URL.Query().Get("page"); p != "" {
-		page, _ = strconv.Atoi(p)
-	}
 
-	sort := r.URL.Query().Get("sort")
-	if sort == "" {
-		sort = "newest" // default sort
-	}
-
-	customers, err := GetAllCustomersWithOrderStats(page, sort)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Get total count of customers (without LIMIT)
-	var total int
-	err = db.QueryRow("SELECT COUNT(*) FROM users").Scan(&total)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	data := PageData{
-		Title:          "Customers",
-		CustomersStats: customers,
-		Pagination:     NewPagination(page, 5, total),
-		Sort:           sort,
-	}
-
-	err = tmpl.ExecuteTemplate(w, "customers.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
 
 func viewCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/customer/view/")
@@ -613,4 +577,64 @@ func addCustomerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+
+
+func customersHandler(w http.ResponseWriter, r *http.Request) {
+    // Get pagination parameters
+    page := 1
+    if p := r.URL.Query().Get("page"); p != "" {
+        page, _ = strconv.Atoi(p)
+    }
+
+    // Get sort parameter
+    sort := r.URL.Query().Get("sort")
+    if sort == "" {
+        sort = "newest" // default sort
+    }
+
+    // Get search query parameter
+    search := r.URL.Query().Get("search")
+
+    // Get customers with search, sort, and pagination
+    customers, err := GetAllCustomersWithOrderStats(page, sort, search)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // Get total count of customers (with search filter if applicable)
+    var total int
+    var countQuery string
+    var countArgs []interface{}
+    
+    if search != "" {
+        countQuery = "SELECT COUNT(*) FROM users WHERE name LIKE ? OR email LIKE ?"
+        searchTerm := "%" + search + "%"
+        countArgs = []interface{}{searchTerm, searchTerm}
+    } else {
+        countQuery = "SELECT COUNT(*) FROM users"
+    }
+    
+    err = db.QueryRow(countQuery, countArgs...).Scan(&total)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // Prepare data for template
+    data := PageData{
+        Title:          "Customers",
+        CustomersStats: customers,
+        Pagination:     NewPagination(page, 5, total),
+        Sort:          sort,
+        SearchQuery:    search, // Pass search query to template
+    }
+
+    // Execute template
+    err = tmpl.ExecuteTemplate(w, "customers.html", data)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
 }
