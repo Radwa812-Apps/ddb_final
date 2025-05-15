@@ -64,17 +64,11 @@ func main() {
 		log.Fatal(pingErr)
 	}
 	fmt.Println("Connected!")
-
-	// In master.go, remove the duplicate route registration
-	http.HandleFunc("/", dashboardHandler)
+	//routes
+	http.HandleFunc("/", databasesHandler)
 	http.HandleFunc("/dashboard", dashboardHandler)
 	http.HandleFunc("/database/", databaseTablesHandler)
-	//http.HandleFunc("/tables", tablesHandler)
 	http.HandleFunc("/database/auth", databaseAuthHandler)
-	//http.HandleFunc("/table/columns/", tableColumnsHandler)
-	//http.HandleFunc("/table/edit/", editTableHandler)
-	//http.HandleFunc("/table/delete/", deleteTableHandler)
-	//http.HandleFunc("/table/update/", updateTableHandler)
 
 	// Database management routes
 	http.HandleFunc("/databases", databasesHandler)
@@ -119,16 +113,8 @@ func main() {
 	http.HandleFunc("/product/update/", updateProductHandler) // Handle edit form submission
 	http.HandleFunc("/product/delete/", deleteProductHandler) // Handle delete
 
-	// Remove this duplicate line:
-	// http.HandleFunc("/order/create", createOrderHandler)
 	http.HandleFunc("/order/view/", viewOrderHandler)
 	http.HandleFunc("/order/update/", updateOrderHandler)
-
-	// // Routes for displaying the form
-	// http.HandleFunc("/table/create", addTableFormHandler)
-
-	// // Route for processing form submission
-	// http.HandleFunc("/tables/create", addTableSubmitHandler)
 
 	//replicaate routes
 	http.HandleFunc("/replicate", replicateHandler)
@@ -142,6 +128,7 @@ func main() {
 
 }
 
+// Handle the root URL
 func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 	data := PageData{
 		Title: "Dashboard",
@@ -151,6 +138,7 @@ func dashboardHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
 func replicateHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
@@ -163,7 +151,7 @@ func replicateHandler(w http.ResponseWriter, r *http.Request) {
 		User     string `json:"user"`
 		Password string `json:"password"`
 	}
-
+	// Decode the JSON request body
 	err := json.NewDecoder(r.Body).Decode(&reqBody)
 	if err != nil {
 		log.Printf("Error decoding JSON: %v", err) // Log error for debugging
@@ -178,6 +166,7 @@ func replicateHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to connect to database", http.StatusInternalServerError)
 		return
 	}
+	// Ensure the database connection is closed after use
 	defer db.Close()
 
 	_, err = db.Exec(reqBody.Query)

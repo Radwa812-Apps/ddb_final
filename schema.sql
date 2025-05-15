@@ -1,4 +1,4 @@
--- 1. إنشاء الجداول مع التعديلات المطلوبة مدمجة
+
 
 CREATE TABLE Users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -37,7 +37,7 @@ CREATE TABLE OrderItems (
     FOREIGN KEY (product_id) REFERENCES Products(id) ON DELETE SET NULL
 );
 
--- 2. إدخال بيانات المستخدمين
+
 
 INSERT INTO Users (name, email, password)
 VALUES 
@@ -47,7 +47,7 @@ VALUES
     ('David Williams', 'david.williams@example.com', 'david012'),
     ('Emma Davis', 'emma.davis@example.com', 'emma345');
 
--- 3. إدخال بيانات المنتجات
+
 
 INSERT INTO Products (name, description, price, quantity)
 VALUES 
@@ -57,7 +57,6 @@ VALUES
     ('Dell XPS 13', 'Dell XPS 13 laptop with Intel Core i7', 1499.00, 10),
     ('Sony WH-1000XM4', 'Sony noise-canceling wireless headphones', 349.00, 20);
 
--- 4. إدخال بيانات الطلبات
 
 INSERT INTO Orders (user_id, total_price)
 VALUES 
@@ -67,7 +66,7 @@ VALUES
     (4, 1500.00),  -- David Williams
     (5, 349.00);   -- Emma Davis
 
--- 5. إدخال تفاصيل عناصر الطلبات
+
 
 INSERT INTO OrderItems (order_id, product_id, quantity, price)
 VALUES

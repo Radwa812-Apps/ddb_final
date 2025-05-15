@@ -33,24 +33,31 @@ type Snap struct {
 var snaps = []Snap{
 	{
 		Name:     "aliaa",
-		Address:  "192.168.205.155",
+		Address:  "192.168.39.155",
 		Port:     "8081",
 		Username: "user",
 		Database: "ecommerce_db",
 	},
 	{
 		Name:     "radwa",
-		Address:  "192.168.205.71",
+		Address:  "192.168.39.71",
 		Port:     "8081",
 		Username: "elite",
 		Database: "ecommerce_db",
 	},
 	// {
 	// 	Name:     "shahd",
-	// 	Address:  "192.168.75.4",
+	// 	Address:  "192.168.39.4",
+	// 	Username: "elite",
+	// 	Port:     "8081",
+	// 	Database: "ecommerce_db",
+	// },
+	// {
+	// 	Name:     "shimaa",
+	// 	Address:  "172.31.104.14",
 	// 	Port:     "8081",
 	// 	Username: "elite",
-	// 	Database: "ecommerce_db",
+	// 	Database: "ecommerce_db1",
 	// },
 }
 
@@ -227,74 +234,6 @@ func DeleteOrderItem(id int) error {
 	_, err := db.Exec("DELETE FROM order_items WHERE id = ?", id)
 	return err
 }
-func reportsHandler(w http.ResponseWriter, r *http.Request) {
-	data := PageData{
-		Title: "Reports",
-	}
-
-	err := tmpl.ExecuteTemplate(w, "reports.html", data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func createOrderInDB(customerID, totalPrice string) (int, error) {
-	var orderID int
-	err := db.QueryRow("INSERT INTO orders (customer_id, total_price) VALUES (?, ?) RETURNING id", customerID, totalPrice).Scan(&orderID)
-	if err != nil {
-		return 0, err
-	}
-	return orderID, nil
-}
-
-func addProductToOrder(orderID, productID, quantity string) error {
-	_, err := db.Exec("INSERT INTO order_items (order_id, product_id, quantity) VALUES (?, ?, ?)", orderID, productID, quantity)
-	return err
-}
-
-func addTableFormHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	tmpl, err := template.ParseFiles("templates/add_table.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	tmpl.Execute(w, nil)
-}
-
-// Handler to process table creation form submission
-func addTableSubmitHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse form data
-	err := r.ParseForm()
-	if err != nil {
-		http.Error(w, "Error parsing form", http.StatusBadRequest)
-		return
-	}
-
-	// Get form values
-	tableName := r.FormValue("table_name")
-	columns := r.Form["column_name"]
-	dataTypes := r.Form["data_type"]
-
-	// Here you would normally process the data and create the table in DB
-	fmt.Printf("Creating table: %s\n", tableName)
-	for i := range columns {
-		fmt.Printf("Column %d: %s (%s)\n", i+1, columns[i], dataTypes[i])
-	}
-
-	// Redirect to success page or back to form
-	http.Redirect(w, r, "/tables", http.StatusSeeOther)
-}
 
 // replicateToSlaves replicates database updates to all slave nodes
 func replicateToSlaves(query string, user string, password string) {
@@ -436,7 +375,7 @@ func deleteDatabaseHandler(w http.ResponseWriter, r *http.Request) {
 
 func databaseAuthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		// عرض نموذج إدخال بيانات الاعتماد
+
 		dbName := r.URL.Query().Get("dbname")
 		if dbName == "" {
 			http.Error(w, "Database name is required", http.StatusBadRequest)
@@ -448,7 +387,7 @@ func databaseAuthHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		// معالجة بيانات الاعتماد المدخلة
+
 		dbName := r.FormValue("dbname")
 		username := r.FormValue("username")
 		password := r.FormValue("password")
@@ -458,8 +397,6 @@ func databaseAuthHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// تخزين بيانات الاعتماد مؤقتاً في الجلسة أو تمريرها كمعلمات
-		// هنا سنمررها كمعلمات في الرابط
 		redirectURL := fmt.Sprintf("/tables?db=%s&user=%s&password=%s",
 			url.QueryEscape(dbName),
 			url.QueryEscape(username),
@@ -527,7 +464,7 @@ func databaseTablesHandler(w http.ResponseWriter, r *http.Request) {
 // Table handlers
 
 func tablesHandler(w http.ResponseWriter, r *http.Request) {
-	// معالجة طلب GET لعرض الجداول
+
 	if r.Method == http.MethodGet {
 		dbName := r.URL.Query().Get("db")
 
@@ -535,7 +472,7 @@ func tablesHandler(w http.ResponseWriter, r *http.Request) {
 		var err error
 
 		if dbName != "" {
-			// استخدام بيانات الاعتماد من المتغيرات البيئية أو القيم الافتراضية
+
 			user := r.URL.Query().Get("user")
 			password := r.URL.Query().Get("password")
 
@@ -553,7 +490,6 @@ func tablesHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			// إنشاء اتصال جديد بقاعدة البيانات المحددة
 			dbConn, err := sql.Open("mysql",
 				fmt.Sprintf("%s:%s@tcp(127.0.0.1:3306)/%s", user, password, dbName))
 
@@ -565,7 +501,7 @@ func tablesHandler(w http.ResponseWriter, r *http.Request) {
 
 			rows, err = dbConn.Query("SHOW TABLES;")
 		} else {
-			// استخدام الاتصال الافتراضي
+
 			rows, err = db.Query("SHOW TABLES;")
 		}
 
@@ -600,25 +536,23 @@ func tablesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func addTableHandler(w http.ResponseWriter, r *http.Request) {
-	// استخراج اسم قاعدة البيانات من URL
+
 	dbName := r.URL.Query().Get("db")
 	if dbName == "" {
 		http.Error(w, "Database name is required", http.StatusBadRequest)
 		return
 	}
 
-	// جلب قائمة الجداول المتاحة من قاعدة البيانات
 	tables, err := getDatabaseTables(dbName)
 	if err != nil {
 		http.Error(w, "Failed to fetch tables: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// تنفيذ القالب مع جميع البيانات المطلوبة
 	tmpl.ExecuteTemplate(w, "add_table.html", map[string]interface{}{
 		"Title":      "Create New Table",
 		"DBName":     dbName,
-		"TablesList": tables, // قائمة الجداول للعلاقات
+		"TablesList": tables,
 	})
 }
 
@@ -628,14 +562,12 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// تحليل بيانات النموذج
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error parsing form data", http.StatusBadRequest)
 		return
 	}
 
-	// الحصول على اسم قاعدة البيانات والجدول
-	dbName := r.FormValue("database") // تغيير من Query إلى FormValue
+	dbName := r.FormValue("database")
 	if dbName == "" {
 		http.Error(w, "Missing database name", http.StatusBadRequest)
 		return
@@ -647,23 +579,20 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// فتح اتصال بقاعدة البيانات
-	dbConn, err := sql.Open("mysql", fmt.Sprintf("root:123456@tcp(127.0.0.1:3306)/%s", dbName))
+	dbConn, err := sql.Open("mysql", fmt.Sprintf("root:rootroot@tcp(127.0.0.1:3306)/%s", dbName))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer dbConn.Close()
 
-	// بدء معاملة (Transaction)
 	tx, err := dbConn.Begin()
 	if err != nil {
 		http.Error(w, "Failed to begin transaction: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer tx.Rollback() // سيتم التراجع إذا لم تكتمل المعاملة
+	defer tx.Rollback()
 
-	// 1. إنشاء الجدول الأساسي مع الأعمدة
 	columns := parseColumns(r.Form)
 	createTableSQL := buildCreateTableSQL(tableName, columns)
 	if _, err := tx.Exec(createTableSQL); err != nil {
@@ -671,9 +600,8 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. معالجة العلاقات
 	relationships := parseRelationships(r.Form)
-	fmt.Printf("Relationships: %+v\n", relationships) // للتصحيح
+	fmt.Printf("Relationships: %+v\n", relationships)
 
 	if err := createRelationships(dbConn, tableName, relationships); err != nil {
 		http.Error(w, "Error creating relationships: "+err.Error(), http.StatusInternalServerError)
@@ -710,7 +638,6 @@ func createTableHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// إتمام المعاملة
 	if err := tx.Commit(); err != nil {
 		http.Error(w, "Failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -852,8 +779,8 @@ func createRelationships(db *sql.DB, tableName string, relationships []map[strin
 		case "belongsTo":
 			sql = fmt.Sprintf("ALTER TABLE `%s` ADD COLUMN `%s_id` INT", tableName, rel["related_table"])
 		case "hasOne", "hasMany":
-			// في حالة hasOne/hasMany نضيف الفورين كي في الجدول الآخر
-			continue // سنتعامل معه في جدول آخر
+
+			continue
 		default:
 			continue
 		}
@@ -884,7 +811,7 @@ func getDatabaseTables(dbName string) ([]string, error) {
 }
 
 func deleteTableHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. استخراج اسم الجدول من URL
+
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 4 {
 		http.Error(w, "Table name not provided", http.StatusBadRequest)
@@ -892,26 +819,23 @@ func deleteTableHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	tableName := parts[3]
 
-	// 2. استخراج اسم القاعدة من query string
 	dbName := r.URL.Query().Get("db")
 	if dbName == "" {
 		http.Error(w, "Database name not provided in query", http.StatusBadRequest)
 		return
 	}
 
-	// 3. تنفيذ الحذف
 	err := deleteTable(dbName, tableName)
 	if err != nil {
 		http.Error(w, "Failed to delete table: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// 4. إعادة التوجيه
 	http.Redirect(w, r, "/tables?db="+dbName, http.StatusSeeOther)
 }
 
 func deleteTable(dbName, tableName string) error {
-	// التحقق من صلاحية الاسم
+
 	var validName = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 	if !validName.MatchString(dbName) || !validName.MatchString(tableName) {
 		return errors.New("invalid database or table name")
@@ -929,7 +853,7 @@ func deleteTable(dbName, tableName string) error {
 }
 
 func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. استخراج اسم الجدول
+
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 4 {
 		http.Error(w, "Table name not provided", http.StatusBadRequest)
@@ -937,14 +861,12 @@ func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	tableName := parts[3]
 
-	// 2. استخراج اسم القاعدة من query string
 	dbName := r.URL.Query().Get("db")
 	if dbName == "" {
 		http.Error(w, "Database name not provided", http.StatusBadRequest)
 		return
 	}
 
-	// 3. تنفيذ SQL: SELECT * FROM db.table LIMIT 100
 	query := fmt.Sprintf("SELECT * FROM `%s`.`%s` LIMIT 100", dbName, tableName)
 	rows, err := db.Query(query)
 	if err != nil {
@@ -953,7 +875,6 @@ func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	// 4. قراءة الأعمدة والصفوف
 	columns, err := rows.Columns()
 	if err != nil {
 		http.Error(w, "Failed to get columns: "+err.Error(), http.StatusInternalServerError)
@@ -991,7 +912,6 @@ func tableRowsHandler(w http.ResponseWriter, r *http.Request) {
 		allRows = append(allRows, rowData)
 	}
 
-	// 5. إرسال البيانات للـ template
 	data := struct {
 		Title   string
 		DBName  string
