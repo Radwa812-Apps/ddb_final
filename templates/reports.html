@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Dashboard - {{.Title}}</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="bg-indigo-800 text-white w-64 space-y-6 py-7 px-2 fixed h-full">
+            <div class="flex items-center space-x-2 px-4">
+                <i class="fas fa-database text-2xl"></i>
+                <span class="text-2xl font-extrabold">DB Manager</span>
+            </div>
+            
+            <nav>
+                <!-- In your sidebar navigation -->
+                
+                <a href="/dashboard" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+                    <i class="fas fa-tachometer-alt mr-2"></i>Dashboard
+                </a>
+                <a href="/products" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+                    <i class="fas fa-boxes mr-2"></i>Products
+                </a>
+                <a href="/orders" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+                    <i class="fas fa-shopping-cart mr-2"></i>Orders
+                </a>
+                <a href="/customers" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+                    <i class="fas fa-users mr-2"></i>Customers
+                </a>
+                <a href="/reports" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-indigo-700">
+                    <i class="fas fa-chart-bar mr-2"></i>Reports
+                </a>
+            </nav>
+        </div>
+    
+
+        <!-- Main Content -->
+        <div class="flex-1 ml-64">
+            <!-- Top Navigation -->
+            <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">{{.Title}}</h1>
+                <div class="flex items-center space-x-4">
+                    
+                </div>
+            </header>
+
+            <!-- Page Content -->
+            <main class="p-6">
+              
+<div class="flex flex-col space-y-6">
+    <!-- Header with date range picker -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0">
+        <h2 class="text-2xl font-bold text-gray-800">Sales Reports & Analytics</h2>
+        
+        <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full md:w-auto">
+            <div class="relative flex items-center">
+                <i class="fas fa-calendar-alt absolute left-3 text-gray-400"></i>
+                <input type="text" id="dateRange" class="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full" 
+                       value="Last 30 days" readonly>
+            </div>
+            <button class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition flex items-center justify-center">
+                <i class="fas fa-download mr-2"></i> Export
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Total Sales -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-gray-500">Total Sales</p>
+                    <h3 class="text-2xl font-bold">$24,780</h3>
+                    <p class="text-green-500 text-sm">+12% from last period</p>
+                </div>
+                <div class="bg-indigo-100 p-3 rounded-full">
+                    <i class="fas fa-dollar-sign text-indigo-600"></i>
+                </div>
+            </div>
+            <div class="mt-4 h-16">
+                <canvas id="totalSalesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Total Orders -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-gray-500">Total Orders</p>
+                    <h3 class="text-2xl font-bold">1,245</h3>
+                    <p class="text-green-500 text-sm">+8% from last period</p>
+                </div>
+                <div class="bg-blue-100 p-3 rounded-full">
+                    <i class="fas fa-shopping-cart text-blue-600"></i>
+                </div>
+            </div>
+            <div class="mt-4 h-16">
+                <canvas id="totalOrdersChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Average Order Value -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-gray-500">Avg. Order Value</p>
+                    <h3 class="text-2xl font-bold">$89.50</h3>
+                    <p class="text-green-500 text-sm">+5% from last period</p>
+                </div>
+                <div class="bg-green-100 p-3 rounded-full">
+                    <i class="fas fa-chart-line text-green-600"></i>
+                </div>
+            </div>
+            <div class="mt-4 h-16">
+                <canvas id="avgOrderChart"></canvas>
+            </div>
+        </div>
+
+        <!-- New Customers -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <p class="text-gray-500">New Customers</p>
+                    <h3 class="text-2xl font-bold">184</h3>
+                    <p class="text-green-500 text-sm">+15% from last period</p>
+                </div>
+                <div class="bg-purple-100 p-3 rounded-full">
+                    <i class="fas fa-users text-purple-600"></i>
+                </div>
+            </div>
+            <div class="mt-4 h-16">
+                <canvas id="newCustomersChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Charts Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Sales Trend -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Sales Trend</h3>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-xs bg-indigo-100 text-indigo-800 rounded-full">Daily</button>
+                    <button class="px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">Weekly</button>
+                    <button class="px-3 py-1 text-xs bg-gray-100 text-gray-800 rounded-full">Monthly</button>
+                </div>
+            </div>
+            <div class="h-80">
+                <canvas id="salesTrendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Revenue by Category -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Revenue by Category</h3>
+                <div class="relative">
+                    <select class="appearance-none bg-gray-100 border border-gray-300 rounded-lg pl-3 pr-8 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option>Last 30 days</option>
+                        <option>Last 90 days</option>
+                        <option>This Year</option>
+                    </select>
+                    <i class="fas fa-chevron-down absolute right-2 top-2 text-xs text-gray-500"></i>
+                </div>
+            </div>
+            <div class="h-80">
+                <canvas id="revenueByCategoryChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Top Selling Products -->
+        <div class="bg-white rounded-lg shadow p-6 lg:col-span-2">
+            <h3 class="text-lg font-semibold mb-4">Top Selling Products</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Product</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sold</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revenue</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <img class="h-10 w-10 rounded" src="https://via.placeholder.com/40" alt="">
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Wireless Headphones</div>
+                                        <div class="text-sm text-gray-500">#WH-1001</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Electronics</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">245</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$24,500</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <img class="h-10 w-10 rounded" src="https://via.placeholder.com/40" alt="">
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Smart Watch</div>
+                                        <div class="text-sm text-gray-500">#SW-2002</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Wearables</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">189</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$37,800</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <img class="h-10 w-10 rounded" src="https://via.placeholder.com/40" alt="">
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">Bluetooth Speaker</div>
+                                        <div class="text-sm text-gray-500">#BS-3003</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Audio</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">156</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">$15,600</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sales by Channel -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h3 class="text-lg font-semibold mb-4">Sales by Channel</h3>
+            <div class="h-64">
+                <canvas id="salesByChannelChart"></canvas>
+            </div>
+            <div class="mt-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-indigo-600 rounded-full mr-2"></div>
+                        <span class="text-sm">Website</span>
+                    </div>
+                    <span class="text-sm font-medium">$18,240 (73.5%)</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
+                        <span class="text-sm">Mobile App</span>
+                    </div>
+                    <span class="text-sm font-medium">$4,560 (18.4%)</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm">POS</span>
+                    </div>
+                    <span class="text-sm font-medium">$1,980 (8.1%)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Include Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.1.0"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
+<!-- Date Range Picker -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.css">
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/moment@2.29.1/moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/daterangepicker@3.1.0/daterangepicker.min.js"></script>
+
+<script>
+    // Initialize date range picker
+    $('#dateRange').daterangepicker({
+        opens: 'left',
+        ranges: {
+            'Today': [moment(), moment()],
+            'Yesterday': [moment().subtract(1, 'days'), moment().subtract(1, 'days')],
+            'Last 7 Days': [moment().subtract(6, 'days'), moment()],
+            'Last 30 Days': [moment().subtract(29, 'days'), moment()],
+            'This Month': [moment().startOf('month'), moment().endOf('month')],
+            'Last Month': [moment().subtract(1, 'month').startOf('month'), moment().subtract(1, 'month').endOf('month')]
+        },
+        alwaysShowCalendars: true,
+        startDate: moment().subtract(29, 'days'),
+        endDate: moment()
+    });
+
+    // Mini Charts
+    const miniChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+        },
+        scales: {
+            x: { display: false },
+            y: { display: false }
+        },
+        elements: {
+            point: { radius: 0 },
+            line: { tension: 0.4, borderWidth: 2 }
+        }
+    };
+
+    // Total Sales Mini Chart
+    const totalSalesCtx = document.getElementById('totalSalesChart').getContext('2d');
+    new Chart(totalSalesCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                data: [12000, 19000, 15000, 18000, 22000, 24780],
+                borderColor: 'rgba(79, 70, 229, 1)',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                fill: true
+            }]
+        },
+        options: miniChartOptions
+    });
+
+    // Total Orders Mini Chart
+    const totalOrdersCtx = document.getElementById('totalOrdersChart').getContext('2d');
+    new Chart(totalOrdersCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                data: [800, 950, 1100, 1050, 1200, 1245],
+                borderColor: 'rgba(59, 130, 246, 1)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true
+            }]
+        },
+        options: miniChartOptions
+    });
+
+    // Avg Order Value Mini Chart
+    const avgOrderCtx = document.getElementById('avgOrderChart').getContext('2d');
+    new Chart(avgOrderCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                data: [75, 82, 78, 85, 87, 89.5],
+                borderColor: 'rgba(16, 185, 129, 1)',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true
+            }]
+        },
+        options: miniChartOptions
+    });
+
+    // New Customers Mini Chart
+    const newCustomersCtx = document.getElementById('newCustomersChart').getContext('2d');
+    new Chart(newCustomersCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                data: [120, 150, 130, 160, 175, 184],
+                borderColor: 'rgba(124, 58, 237, 1)',
+                backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                fill: true
+            }]
+        },
+        options: miniChartOptions
+    });
+
+    // Sales Trend Chart
+    const salesTrendCtx = document.getElementById('salesTrendChart').getContext('2d');
+    new Chart(salesTrendCtx, {
+        type: 'line',
+        data: {
+            labels: Array.from({length: 30}, (_, i) => moment().subtract(29 - i, 'days').format('MMM D')),
+            datasets: [
+                {
+                    label: 'Current Period',
+                    data: Array.from({length: 30}, () => Math.floor(Math.random() * 2000) + 500),
+                    borderColor: 'rgba(79, 70, 229, 1)',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                },
+                {
+                    label: 'Previous Period',
+                    data: Array.from({length: 30}, () => Math.floor(Math.random() * 1800) + 400),
+                    borderColor: 'rgba(156, 163, 175, 1)',
+                    backgroundColor: 'rgba(156, 163, 175, 0.1)',
+                    borderDash: [5, 5],
+                    fill: true,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Revenue by Category Chart
+    const revenueByCategoryCtx = document.getElementById('revenueByCategoryChart').getContext('2d');
+    new Chart(revenueByCategoryCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Electronics', 'Clothing', 'Home & Garden', 'Beauty', 'Sports'],
+            datasets: [{
+                label: 'Revenue',
+                data: [12500, 5800, 3200, 2100, 1800],
+                backgroundColor: [
+                    'rgba(79, 70, 229, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(16, 185, 129, 0.8)',
+                    'rgba(245, 158, 11, 0.8)',
+                    'rgba(124, 58, 237, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(79, 70, 229, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(124, 58, 237, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                datalabels: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Sales by Channel Chart
+    const salesByChannelCtx = document.getElementById('salesByChannelChart').getContext('2d');
+    new Chart(salesByChannelCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Website', 'Mobile App', 'POS'],
+            datasets: [{
+                data: [73.5, 18.4, 8.1],
+                backgroundColor: [
+                    'rgba(79, 70, 229, 0.8)',
+                    'rgba(59, 130, 246, 0.8)',
+                    'rgba(16, 185, 129, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(79, 70, 229, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(16, 185, 129, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            cutout: '70%'
+        }
+    });
+</script>
+
+            </main>
+        </div>
+    </div>
+</body>
+</html>
