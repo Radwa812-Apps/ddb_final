@@ -77,7 +77,23 @@ Build and run:
 go build
 ./ecommerce-dbms
 ```
+---
 
+## 🌐 Usage
+
+### Accessing the System
+
+- Open your browser at: `http://localhost:8081`
+- Use the dashboard for navigation and management
+
+### Key Endpoints
+
+- `/customers` - Manage customer accounts
+- `/products` - Manage product inventory
+- `/orders` - Process and manage orders
+- `/dashboard` - E-commerce Dashboard
+
+---
 
 ## ⚙️ Configuration
 
