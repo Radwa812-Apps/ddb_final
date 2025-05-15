@@ -42,7 +42,7 @@ A distributed e-commerce database system with master-slave replication architect
 
 ```bash
 # Clone repository
-git clone https://github.com/Radwa812-Apps/ddb_final/tree/third_slave
+git clone https://github.com/Radwa812-Apps/ddb_final/tree/final_slave
 cd ecommerce-dbms
 
 # Set environment variables
@@ -121,7 +121,7 @@ sequenceDiagram
     Slave2->>Slave2DB: Execute Query
     Slave1->>Master: POST /replicate 
     Master->>MasterDB: Execute Query
-    
+  
 ```
 
 ## 📂 Project Structure
