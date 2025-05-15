@@ -259,6 +259,5 @@ This project is licensed under the **MIT License**.
 
 ## 📬 Contact
 
-**Your Name**
 📧 Email: Shaima.AbdulRahim829@compit.aun.edu.eg
 🔗 GitHub: https://github.com/Radwa812-Apps
