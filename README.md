@@ -40,28 +40,44 @@ A distributed e-commerce database system with master-slave replication architect
 
 ### Setup Instructions
 
+
+Clone the repository:
+
 ```bash
-# Clone repository
 git clone https://github.com/Radwa812-Apps/ddb_final/tree/final_slave
 cd ecommerce-dbms
+```
 
-# Set environment variables
+Set up environment variables:
+
+```bash
 export DBUSER=your_db_username
 export DBPASS=your_db_password
-
-# Initialize database
-mysql -u root -p -e "CREATE DATABASE ecommerce_db"
-mysql -u root -p ecommerce_db < schema.sql
-
-# Build and run
-go run .
-
-# Start master node
-./ecommerce-dbms
-
-# In another terminal (slave node)
-DBPORT=8081 ./ecommerce-dbms
 ```
+
+Initialize the database:
+
+- Create a MySQL database named `ecommerce_db`
+- Import the schema from `schema.sql`
+
+Configure slave nodes:
+
+- Update the `snaps` slice in `crud_operation.go` with slave node info
+- Ensure each slave node has the replication endpoint running
+
+In another terminal (master node):
+
+```bash
+DBPORT=8080 ./ecommerce-dbms
+```
+
+Build and run:
+
+```bash
+go build
+./ecommerce-dbms
+```
+
 
 ## ⚙️ Configuration
 
