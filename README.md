@@ -90,7 +90,7 @@ ddb_final/
 Clone the repository:
 
 ```bash
-git clone https://github.com/Radwa812-Apps/ddb_final/tree/master
+git clone https://github.com/Radwa812-Apps/ddb_final/tree/final_master
 cd ecommerce-dbms
 ```
 
