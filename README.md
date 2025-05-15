@@ -155,6 +155,37 @@ To add a new slave node, include its info in the `snaps` slice:
 
 Ensure each slave node exposes a `/replicate` endpoint.
 
+## 🔄 Replication Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant MasterNode
+    participant MasterDB
+    participant SlaveNode
+    participant SlaveDB
+
+    Note over Client: HTTP Request (Create/Update/Delete)
+    Client->>MasterNode: POST /product/create
+    MasterNode->>MasterDB: BEGIN TRANSACTION
+    MasterNode->>MasterDB: INSERT INTO products...
+    MasterDB-->>MasterNode: Success
+    
+    alt Single Slave Configuration
+        MasterNode->>SlaveNode: POST /replicate
+        SlaveNode->>SlaveDB: Execute Query
+        SlaveDB-->>SlaveNode: Result
+        SlaveNode-->>MasterNode: 200 OK
+    else Multiple Slaves
+        par Parallel Replication
+            MasterNode->>Slave1: POST /replicate
+            MasterNode->>Slave2: POST /replicate
+        end
+    end
+    
+    MasterNode->>MasterDB: COMMIT
+    MasterNode-->>Client: 201 Created
+```
 ---
 
 ## 📚 API Documentation
